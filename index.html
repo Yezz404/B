@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>ChatGPT Export to .txt Converter</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <style>
+    body { font-family: sans-serif; padding: 2em; background: #fdf6f9; color: #333; }
+    input[type="file"] { margin-bottom: 1em; }
+    button { padding: 0.5em 1em; margin-top: 1em; }
+    #log { margin-top: 1em; white-space: pre-wrap; background: #fff; padding: 1em; border-radius: 5px; }
+  </style>
+</head>
+<body>
+
+  <h1>ChatGPT Export → .txt Converter</h1>
+  <p>Upload your exported <code>conversations.json</code> inside a <code>.zip</code> file.</p>
+  <input type="file" id="fileInput" accept=".zip" />
+  <button onclick="processZip()">Convert and Download</button>
+
+  <div id="log"></div>
+
+  <script>
+    async function processZip() {
+      const input = document.getElementById('fileInput');
+      const file = input.files[0];
+      const log = document.getElementById('log');
+      log.textContent = 'Processing...';
+
+      if (!file) {
+        log.textContent = 'Please select a .zip file first.';
+        return;
+      }
+
+      const zip = await JSZip.loadAsync(file);
+      const conversationsFile = zip.file('conversations.json');
+
+      if (!conversationsFile) {
+        log.textContent = 'No conversations.json found in ZIP.';
+        return;
+      }
+
+      const jsonText = await conversationsFile.async('text');
+      const data = JSON.parse(jsonText);
+      const exportZip = new JSZip();
+
+      let count = 0;
+      for (const convo of data) {
+        const title = sanitizeFilename(convo.title || `Conversation-${count}`);
+        const messages = flattenMessages(convo.mapping);
+        let content = `Title: ${title}\nCreated: ${new Date(convo.create_time * 1000).toLocaleString()}\n\n`;
+
+        for (const msg of messages) {
+          if (!msg.author || !msg.content?.parts) continue;
+          const who = msg.author.role === 'user' ? 'You' : 'ChatGPT';
+          content += `[${new Date(msg.create_time * 1000).toLocaleString()}] ${who}:\n${msg.content.parts.join('\n')}\n\n`;
+        }
+
+        exportZip.file(`${title}.txt`, content.trim());
+        count++;
+      }
+
+      const blob = await exportZip.generateAsync({ type: 'blob' });
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'chatgpt_dialogues.zip';
+      link.click();
+      log.textContent = `Exported ${count} conversations to chatgpt_dialogues.zip`;
+    }
+
+    function flattenMessages(mapping) {
+      return Object.values(mapping).filter(m => m.message);
+    }
+
+    function sanitizeFilename(name) {
+      return name.replace(/[\\/:*?"<>|]/g, '-').substring(0, 50);
+    }
+  </script>
+</body>
+</html>
