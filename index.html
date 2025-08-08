@@ -14,7 +14,6 @@
         /* --- 全局與主題變數 --- */
         :root {
             --font-family: 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
-
             /* 淺色主題 (可愛粉色系) */
             --light-bg: #fff8f7;
             --light-sidebar-bg: #ffe4e1;
@@ -30,7 +29,6 @@
             --light-scrollbar-track: #ffe4e1;
             --light-highlight-bg: #ffdd77;
             --light-highlight-text: #000;
-
             /* 深色主題 */
             --dark-bg: #1e1e1e;
             --dark-sidebar-bg: #252526;
@@ -56,425 +54,179 @@
             overflow: hidden;
             transition: background-color 0.3s, color 0.3s;
         }
-
-        body.light-mode {
-            background-color: var(--light-bg);
-            color: var(--light-text-primary);
-        }
-
-        body.dark-mode {
-            background-color: var(--dark-bg);
-            color: var(--dark-text-primary);
-        }
+        body.light-mode { background-color: var(--light-bg); color: var(--light-text-primary); }
+        body.dark-mode { background-color: var(--dark-bg); color: var(--dark-text-primary); }
 
         /* --- 自訂滾動條 --- */
-        ::-webkit-scrollbar { width: 10px; }
+        ::-webkit-scrollbar { width: 12px; }
         body.light-mode ::-webkit-scrollbar-track { background: var(--light-scrollbar-track); }
-        body.light-mode ::-webkit-scrollbar-thumb { background: var(--light-scrollbar-thumb); border-radius: 5px; }
+        body.light-mode ::-webkit-scrollbar-thumb { background: var(--light-scrollbar-thumb); border-radius: 6px; border: 2px solid var(--light-scrollbar-track); }
         body.light-mode ::-webkit-scrollbar-thumb:hover { background: var(--light-accent-hover); }
-
         body.dark-mode ::-webkit-scrollbar-track { background: var(--dark-scrollbar-track); }
-        body.dark-mode ::-webkit-scrollbar-thumb { background: var(--dark-scrollbar-thumb); border-radius: 5px; }
+        body.dark-mode ::-webkit-scrollbar-thumb { background: var(--dark-scrollbar-thumb); border-radius: 6px; border: 2px solid var(--dark-scrollbar-track); }
         body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #777; }
 
         /* --- 主佈局 --- */
-        .sidebar {
-            width: 320px;
-            flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            border-right: 1px solid;
-            transition: background-color 0.3s, border-color 0.3s;
-        }
+        .sidebar { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid; transition: background-color 0.3s, border-color 0.3s; }
         body.light-mode .sidebar { background-color: var(--light-sidebar-bg); border-color: var(--light-border); }
         body.dark-mode .sidebar { background-color: var(--dark-sidebar-bg); border-color: var(--dark-border); }
-
-        .chat-container {
-            flex-grow: 1;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
-        }
+        
+        .chat-container { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; }
         body.light-mode .chat-container { background-color: var(--light-chat-bg); }
         body.dark-mode .chat-container { background-color: var(--dark-chat-bg); }
 
         /* --- 歡迎介面 --- */
-        #welcome-screen {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            text-align: center;
-            height: 100%;
-            padding: 20px;
-        }
+        #welcome-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; height: 100%; padding: 20px; }
         #welcome-screen h1 { font-size: 2.5em; margin-bottom: 10px; }
         body.light-mode #welcome-screen h1 { color: var(--light-accent); }
         body.dark-mode #welcome-screen h1 { color: var(--dark-accent); }
         #welcome-screen p { font-size: 1.2em; max-width: 600px; margin-bottom: 30px; }
-        #upload-label {
-            padding: 15px 30px;
-            border-radius: 50px;
-            cursor: pointer;
-            font-size: 1.2em;
-            font-weight: bold;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
+        #upload-label { padding: 15px 30px; border-radius: 50px; cursor: pointer; font-size: 1.2em; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; }
         body.light-mode #upload-label { background-color: var(--light-accent); color: white; }
         body.dark-mode #upload-label { background-color: var(--dark-accent); color: white; }
         #upload-label:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
         #file-input { display: none; }
-
+        
         /* --- 側邊欄 --- */
         .sidebar-header { padding: 15px; border-bottom: 1px solid; }
         body.light-mode .sidebar-header { border-color: var(--light-border); }
         body.dark-mode .sidebar-header { border-color: var(--dark-border); }
-        
         .sidebar-controls { display: flex; flex-direction: column; gap: 10px; }
-
         .search-sort-container { display: flex; gap: 10px; align-items: center; }
         #search-conversations { flex-grow: 1; }
-        
-        .control-input, .control-select {
-            width: 100%;
-            padding: 8px 12px;
-            border-radius: 20px;
-            border: 1px solid;
-            font-size: 14px;
-        }
+        .control-input, .control-select { width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 20px; border: 1px solid; font-size: 14px; }
         body.light-mode .control-input, body.light-mode .control-select { background-color: white; border-color: var(--light-border); color: var(--light-text-primary); }
         body.dark-mode .control-input, body.dark-mode .control-select { background-color: #333; border-color: var(--dark-border); color: var(--dark-text-primary); }
-
         .export-buttons { display: flex; gap: 10px; }
         .export-buttons button { flex-grow: 1; }
-
-        .btn {
-            padding: 8px 12px;
-            border: none;
-            border-radius: 20px;
-            cursor: pointer;
-            font-weight: 600;
-            transition: background-color 0.2s, transform 0.1s;
-        }
+        .btn { padding: 8px 12px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; transition: background-color 0.2s, transform 0.1s; }
         .btn:active { transform: scale(0.95); }
         body.light-mode .btn.primary { background-color: var(--light-accent); color: white; }
         body.light-mode .btn.primary:hover { background-color: var(--light-accent-hover); }
         body.dark-mode .btn.primary { background-color: var(--dark-accent); color: white; }
         body.dark-mode .btn.primary:hover { background-color: var(--dark-accent-hover); }
-
-        #conversation-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-            overflow-y: auto;
-            flex-grow: 1;
-        }
-        .conversation-item {
-            padding: 15px;
-            cursor: pointer;
-            border-bottom: 1px solid;
-            transition: background-color 0.2s;
-            position: relative;
-        }
-        .conversation-item input[type="checkbox"] { position: absolute; left: 15px; top: 15px; }
-        .conversation-item-content { margin-left: 25px; }
-
+        #conversation-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
+        .conversation-item { padding: 15px; cursor: pointer; border-bottom: 1px solid; transition: background-color 0.2s; position: relative; }
+        .conversation-item input[type="checkbox"] { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; }
+        .conversation-item-content { margin-left: 30px; }
         body.light-mode .conversation-item { border-color: var(--light-border); }
         body.dark-mode .conversation-item { border-color: var(--dark-border); }
         body.light-mode .conversation-item:hover { background-color: #fff0f5; }
         body.dark-mode .conversation-item:hover { background-color: #333; }
-        .conversation-item.active {
-            font-weight: bold;
-        }
+        .conversation-item.active { font-weight: bold; }
         body.light-mode .conversation-item.active { background-color: #ffdde5 !important; }
         body.dark-mode .conversation-item.active { background-color: #005a9e !important; }
-
         .conversation-title { display: block; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
         .conversation-timestamp, .conversation-stats { font-size: 0.75em; }
         body.light-mode .conversation-timestamp, body.light-mode .conversation-stats { color: var(--light-text-secondary); }
         body.dark-mode .conversation-timestamp, body.dark-mode .conversation-stats { color: var(--dark-text-secondary); }
-
-        .search-preview {
-            font-size: 0.8em;
-            margin-top: 5px;
-            padding: 5px;
-            border-radius: 4px;
-            max-height: 50px;
-            overflow: hidden;
-        }
+        .search-preview { font-size: 0.8em; margin-top: 5px; padding: 5px; border-radius: 4px; max-height: 50px; overflow: hidden; word-break: break-all; }
         body.light-mode .search-preview { background-color: rgba(255, 255, 255, 0.5); }
         body.dark-mode .search-preview { background-color: rgba(0, 0, 0, 0.2); }
-        .search-preview mark {
-            padding: 0;
-            font-weight: bold;
-        }
+        .search-preview mark { padding: 0; font-weight: bold; }
         body.light-mode .search-preview mark { background-color: var(--light-highlight-bg); color: var(--light-highlight-text); }
         body.dark-mode .search-preview mark { background-color: var(--dark-highlight-bg); color: var(--dark-highlight-text); }
-
-        .sidebar-footer {
-            padding: 10px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid;
-        }
+        .sidebar-footer { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid; }
         body.light-mode .sidebar-footer { border-color: var(--light-border); }
         body.dark-mode .sidebar-footer { border-color: var(--dark-border); }
         #conversation-count { font-size: 0.8em; }
 
         /* --- 主聊天視窗 --- */
-        .chat-header {
-            padding: 10px 20px;
-            border-bottom: 1px solid;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
-        }
+        #chat-view { display: flex; flex-direction: column; height: 100%; }
+        .chat-header { padding: 10px 20px; border-bottom: 1px solid; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
         body.light-mode .chat-header { border-color: var(--light-border); }
         body.dark-mode .chat-header { border-color: var(--dark-border); }
-        
         #chat-title { font-size: 1.2em; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .chat-header-controls { display: flex; align-items: center; gap: 10px; }
-
         #chat-search-box { display: flex; align-items: center; gap: 5px; }
         #chat-search-box input { width: 150px; }
         #chat-search-nav { font-size: 0.9em; }
+        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 20px; }
 
-        #chat-messages {
-            flex-grow: 1;
-            overflow-y: auto;
-            padding: 20px;
-        }
-
-        .message {
-            display: flex;
-            margin-bottom: 20px;
-            max-width: 90%;
-        }
-        .message-content {
-            padding: 12px 18px;
-            border-radius: 18px;
-            position: relative;
-        }
+        .message { display: flex; margin-bottom: 20px; max-width: 90%; }
+        .message-content { padding: 12px 18px; border-radius: 18px; position: relative; }
+        .message-content:hover .copy-message-btn { opacity: 1; }
         .message-content p:last-child { margin-bottom: 0; }
         .message-content p:first-child { margin-top: 0; }
-
         .message.user { margin-left: auto; flex-direction: row-reverse; }
         .message.assistant { margin-right: auto; }
-        
         body.light-mode .message.user .message-content { background-color: var(--light-user-bubble); }
         body.light-mode .message.assistant .message-content { background-color: var(--light-assistant-bubble); }
         body.dark-mode .message.user .message-content { background-color: var(--dark-user-bubble); }
         body.dark-mode .message.assistant .message-content { background-color: var(--dark-assistant-bubble); }
-
-        .avatar {
-            width: 36px;
-            height: 36px;
-            border-radius: 50%;
-            text-align: center;
-            line-height: 36px;
-            font-size: 18px;
-            font-weight: bold;
-            flex-shrink: 0;
-            margin: 0 10px;
-        }
+        .avatar { width: 36px; height: 36px; border-radius: 50%; text-align: center; line-height: 36px; font-size: 18px; font-weight: bold; flex-shrink: 0; margin: 0 10px; }
         body.light-mode .avatar.user { background-color: var(--light-accent); color: white; }
         body.light-mode .avatar.assistant { background-color: #98d8b6; color: white; }
         body.dark-mode .avatar.user { background-color: var(--dark-accent); color: white; }
         body.dark-mode .avatar.assistant { background-color: #3a5a40; color: white; }
-
-        .message-meta {
-            font-size: 0.75em;
-            margin-top: 5px;
-            text-align: right;
-        }
+        .message-meta { font-size: 0.75em; margin-top: 5px; text-align: right; }
         .message.assistant .message-meta { text-align: left; }
         body.light-mode .message-meta { color: var(--light-text-secondary); }
         body.dark-mode .message-meta { color: var(--dark-text-secondary); }
-
+        
         /* --- 訊息內容樣式 --- */
+        .message-body { word-wrap: break-word; }
         .message-body a { font-weight: bold; }
         body.light-mode .message-body a { color: #ff69b4; }
         body.dark-mode .message-body a { color: #87ceeb; }
-
-        .message-body pre {
-            position: relative;
-            padding: 1em;
-            padding-top: 2.5em; /* Space for header */
-            border-radius: 8px;
-            overflow-x: auto;
-            background-color: #282c34; /* Standard dark background for code */
-            color: #abb2bf;
-        }
-        .code-header {
-            position: absolute;
-            top: 0;
-            left: 0;
-            right: 0;
-            padding: 5px 10px;
-            background-color: #3c4049;
-            color: #dcdcdc;
-            font-size: 0.8em;
-            border-top-left-radius: 8px;
-            border-top-right-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .copy-code-btn {
-            background: #555;
-            color: white;
-            border: none;
-            padding: 3px 8px;
-            border-radius: 5px;
-            cursor: pointer;
-            font-size: 0.8em;
-        }
+        .message-body pre { position: relative; padding: 1em; padding-top: 2.8em; border-radius: 8px; background-color: #282c34; color: #abb2bf; white-space: pre-wrap; word-wrap: break-word; }
+        .code-header { position: absolute; top: 0; left: 0; right: 0; padding: 5px 10px; background-color: #3c4049; color: #dcdcdc; font-size: 0.8em; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
+        .copy-code-btn { background: #555; color: white; border: none; padding: 3px 8px; border-radius: 5px; cursor: pointer; font-size: 0.8em; }
         .copy-code-btn:hover { background: #666; }
-
-        .message-body code:not(pre code) {
-            padding: 0.2em 0.4em;
-            margin: 0;
-            font-size: 85%;
-            border-radius: 3px;
-        }
+        .message-body code:not(pre code) { padding: 0.2em 0.4em; margin: 0; font-size: 85%; border-radius: 3px; }
         body.light-mode .message-body code:not(pre code) { background-color: rgba(255, 182, 193, 0.3); }
         body.dark-mode .message-body code:not(pre code) { background-color: rgba(135, 206, 235, 0.2); }
-        
-        .message-body blockquote {
-            margin: 0;
-            padding-left: 1em;
-            border-left: 4px solid;
-        }
+        .message-body blockquote { margin: 1em 0; padding-left: 1em; border-left: 4px solid; }
         body.light-mode .message-body blockquote { border-color: var(--light-accent); background-color: #fff5f8; }
         body.dark-mode .message-body blockquote { border-color: var(--dark-accent); background-color: #2a2a2a; }
-
-        .message-body table { border-collapse: collapse; width: 100%; }
+        .message-body table { border-collapse: collapse; width: 100%; margin: 1em 0; }
         .message-body th, .message-body td { border: 1px solid; padding: 8px; }
         body.light-mode .message-body th, body.light-mode .message-body td { border-color: var(--light-border); }
         body.dark-mode .message-body th, body.dark-mode .message-body td { border-color: var(--dark-border); }
         body.light-mode .message-body th { background-color: #ffe4e1; }
         body.dark-mode .message-body th { background-color: #333; }
-
-        .attachment-image {
-            max-width: 100%;
-            border-radius: 8px;
-            margin-bottom: 10px;
-            cursor: pointer;
-        }
-        
-        mark.chat-highlight {
-            background-color: var(--dark-highlight-bg);
-            color: var(--dark-highlight-text);
-            padding: 2px;
-            border-radius: 3px;
-        }
+        .attachment-image { max-width: 100%; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
+        mark.chat-highlight { background-color: var(--dark-highlight-bg); color: var(--dark-highlight-text); padding: 2px; border-radius: 3px; outline: 1px solid red; }
+        .copy-message-btn { position: absolute; top: 8px; right: 8px; background: #ccc; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; opacity: 0; transition: opacity 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        body.dark-mode .copy-message-btn { background: #555; color: #fff; }
 
         /* --- 浮動按鈕 --- */
-        .floating-buttons {
-            position: absolute;
-            bottom: 20px;
-            right: 20px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .floating-btn {
-            width: 48px;
-            height: 48px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            font-size: 24px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-        }
+        .floating-buttons { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
+        .floating-btn { width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
 
         /* --- 主題切換按鈕 --- */
-        .theme-switch {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            border: none;
-            cursor: pointer;
-            font-size: 20px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            transition: background-color 0.3s, color 0.3s;
-        }
+        .theme-switch { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; font-size: 20px; display: flex; justify-content: center; align-items: center; transition: background-color 0.3s, color 0.3s; }
         body.light-mode .theme-switch { background-color: #fff; color: #333; }
         body.dark-mode .theme-switch { background-color: #444; color: #fff; }
 
         /* --- PDF 導出模板 --- */
-        #pdf-export-container {
-            display: none;
-            position: absolute;
-            left: -9999px; /* Hide off-screen */
-            width: 800px; /* A4-like width */
-            font-family: var(--font-family);
-            color: #333;
-        }
-        .pdf-page {
-            background: white;
-            padding: 40px;
-            margin-bottom: 20px;
-            box-shadow: 0 0 10px rgba(0,0,0,0.1);
-            min-height: 1120px; /* A4-like height */
-        }
-        .pdf-header {
-            text-align: center;
-            border-bottom: 2px solid #ffe4e1;
-            padding-bottom: 20px;
-            margin-bottom: 30px;
-        }
+        #pdf-export-container { display: none; position: absolute; left: -9999px; width: 800px; font-family: var(--font-family); color: #333; }
+        .pdf-page { background: white; padding: 40px; margin-bottom: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); min-height: 1120px; display: flex; flex-direction: column; }
+        .pdf-header { text-align: center; border-bottom: 2px solid #ffe4e1; padding-bottom: 20px; margin-bottom: 30px; flex-shrink: 0; }
         .pdf-header h2 { color: #ffb6c1; margin: 0; font-size: 24px; }
         .pdf-header p { color: #777; font-size: 14px; margin: 5px 0 0; }
-        .pdf-message {
-            display: flex;
-            margin-bottom: 15px;
-            max-width: 100%;
-        }
+        .pdf-body { flex-grow: 1; }
+        .pdf-message { display: flex; margin-bottom: 15px; max-width: 100%; }
         .pdf-message.user { justify-content: flex-end; }
-        .pdf-message-content {
-            padding: 10px 15px;
-            border-radius: 15px;
-            max-width: 75%;
-            word-break: break-word;
-        }
-        .pdf-message.user .pdf-message-content { background-color: #f0f8ff; }
+        .pdf-message.assistant { justify-content: flex-start; }
+        .pdf-message-content { padding: 10px 15px; border-radius: 15px; max-width: 75%; word-break: break-word; }
+        .pdf-message.user .pdf-message-content { background-color: #e6f3ff; }
         .pdf-message.assistant .pdf-message-content { background-color: #fff0f5; }
         .pdf-message-meta { font-size: 10px; color: #999; margin-top: 4px; }
         .pdf-message.user .pdf-message-meta { text-align: right; }
         .pdf-message.assistant .pdf-message-meta { text-align: left; }
-        .pdf-message pre { white-space: pre-wrap; word-break: break-all; }
+        .pdf-message pre { white-space: pre-wrap; word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
 
         /* --- 響應式設計 --- */
         @media (max-width: 768px) {
             body { flex-direction: column; }
-            .sidebar {
-                width: 100%;
-                height: 100vh;
-                position: absolute;
-                top: 0;
-                left: -100%;
-                transition: left 0.3s ease-in-out;
-                z-index: 1000;
-            }
+            .sidebar { width: 100%; height: 100vh; position: absolute; top: 0; left: -100%; transition: left 0.3s ease-in-out; z-index: 1000; }
             .sidebar.visible { left: 0; }
             .chat-container { width: 100%; }
-            .chat-header {
-                padding: 10px 15px;
-            }
-            #chat-title { max-width: calc(100vw - 150px); }
-            .back-to-list-btn {
-                display: block !important; /* Important to override hidden */
-                margin-right: 10px;
-            }
-            .message { max-width: 100%; }
+            .chat-header { padding: 10px 15px; }
+            #chat-title { max-width: calc(100vw - 180px); }
+            .back-to-list-btn { display: block !important; margin-right: 10px; }
+            .message { max-width: 95%; }
         }
         .hidden { display: none !important; }
     </style>
@@ -572,7 +324,6 @@
         const backToListBtn = document.getElementById('back-to-list-btn');
         const sidebar = document.querySelector('.sidebar');
         
-        // Chat search elements
         const chatSearchBox = document.getElementById('chat-search-box');
         const chatSearchInput = document.getElementById('chat-search-input');
         const searchCounter = document.getElementById('search-counter');
@@ -582,6 +333,10 @@
         // --- 初始化 ---
         document.addEventListener('DOMContentLoaded', () => {
             initTheme();
+            addEventListeners();
+        });
+
+        function addEventListeners() {
             fileInput.addEventListener('change', handleFolderUpload);
             searchConversationsInput.addEventListener('input', (e) => {
                 currentSearchTerm = e.target.value.toLowerCase();
@@ -599,15 +354,17 @@
             scrollUpBtn.addEventListener('click', () => chatMessages.scrollTo({ top: 0, behavior: 'smooth' }));
             scrollDownBtn.addEventListener('click', () => chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }));
             
-            if (window.innerWidth <= 768) {
-                backToListBtn.addEventListener('click', () => sidebar.classList.remove('visible'));
-            }
+            backToListBtn.addEventListener('click', () => {
+                 if (window.innerWidth <= 768) sidebar.classList.remove('visible');
+            });
 
-            // Chat search listeners
             chatSearchInput.addEventListener('input', handleChatSearch);
-            searchPrevBtn.addEventListener('click', navigateSearchResults.bind(null, -1));
-            searchNextBtn.addEventListener('click', navigateSearchResults.bind(null, 1));
-        });
+            searchPrevBtn.addEventListener('click', () => navigateSearchResults(-1));
+            searchNextBtn.addEventListener('click', () => navigateSearchResults(1));
+            
+            // 使用事件代理處理複製按鈕點擊
+            chatMessages.addEventListener('click', handleMessageClicks);
+        }
 
         // --- 核心功能 ---
         async function handleFolderUpload(event) {
@@ -624,9 +381,8 @@
 
             fileMap.clear();
             for (const file of files) {
-                // webkitdirectory gives full path, we need relative path
                 const relativePath = file.webkitRelativePath.split('/').slice(1).join('/');
-                fileMap.set(relativePath, file);
+                if (relativePath) fileMap.set(relativePath, file);
             }
 
             try {
@@ -648,7 +404,6 @@
             let conversationsData = [];
             try {
                 const parsed = JSON.parse(jsonText);
-                // 智能判斷新舊格式
                 if (Array.isArray(parsed)) {
                     conversationsData = parsed; // 舊格式
                 } else if (parsed && Array.isArray(parsed.items)) {
@@ -662,36 +417,26 @@
                 return;
             }
 
-            allConversations = conversationsData.map(conv => {
-                const stats = calculateStats(conv);
-                return {
-                    id: conv.id,
-                    title: conv.title || '無標題對話',
-                    create_time: conv.create_time,
-                    mapping: conv.mapping,
-                    ...stats
-                };
-            });
+            allConversations = conversationsData.map(conv => ({
+                id: conv.id,
+                title: conv.title || '無標題對話',
+                create_time: conv.create_time,
+                mapping: conv.mapping,
+                ...calculateStats(conv)
+            })).filter(c => c.id && c.title && c.mapping); // 過濾掉無效對話
             
             renderConversationList();
         }
 
         function calculateStats(conversation) {
-            let wordCount = 0;
-            let userMessages = 0;
-            let assistantMessages = 0;
-
+            let wordCount = 0, userMessages = 0, assistantMessages = 0;
             if (!conversation.mapping) return { wordCount, userMessages, assistantMessages };
-
             Object.values(conversation.mapping).forEach(node => {
                 const message = node.message;
-                if (message && message.author && message.content && message.content.parts) {
-                    const content = message.content.parts.join('');
-                    if (content) {
-                        wordCount += content.split(/\s+/).length;
-                        if (message.author.role === 'user') userMessages++;
-                        if (message.author.role === 'assistant') assistantMessages++;
-                    }
+                if (message?.author?.role && message?.content?.parts?.join('')) {
+                    wordCount += message.content.parts.join('').split(/\s+/).length;
+                    if (message.author.role === 'user') userMessages++;
+                    if (message.author.role === 'assistant') assistantMessages++;
                 }
             });
             return { wordCount, userMessages, assistantMessages };
@@ -699,47 +444,36 @@
 
         // --- 渲染功能 ---
         function renderConversationList() {
-            // 1. 過濾
             const filtered = allConversations.filter(conv => {
                 if (!currentSearchTerm) return true;
-                const titleMatch = conv.title.toLowerCase().includes(currentSearchTerm);
+                const term = currentSearchTerm.toLowerCase();
+                const titleMatch = conv.title.toLowerCase().includes(term);
                 if (titleMatch) return true;
-                
-                // 搜尋內容
-                const contentMatch = Object.values(conv.mapping).some(node => {
-                    const msg = node.message;
-                    return msg && msg.content && msg.content.parts && msg.content.parts.join('').toLowerCase().includes(currentSearchTerm);
-                });
-                return contentMatch;
+                return Object.values(conv.mapping).some(node => 
+                    node.message?.content?.parts?.join('').toLowerCase().includes(term)
+                );
             });
 
-            // 2. 排序
             const sorted = filtered.sort((a, b) => {
                 switch (currentSort) {
                     case 'oldest': return a.create_time - b.create_time;
                     case 'az': return a.title.localeCompare(b.title);
                     case 'za': return b.title.localeCompare(a.title);
-                    case 'newest':
                     default: return b.create_time - a.create_time;
                 }
             });
 
-            // 3. 渲染
             conversationList.innerHTML = '';
             sorted.forEach(conv => {
                 const li = document.createElement('li');
                 li.className = 'conversation-item';
                 li.dataset.id = conv.id;
-                if (conv.id === currentConversationId) {
-                    li.classList.add('active');
-                }
+                if (conv.id === currentConversationId) li.classList.add('active');
 
                 let previewHTML = '';
                 if (currentSearchTerm) {
                     const previewText = findFirstMatchInConversation(conv, currentSearchTerm);
-                    if (previewText) {
-                         previewHTML = `<div class="search-preview">${highlightText(previewText, currentSearchTerm)}</div>`;
-                    }
+                    if (previewText) previewHTML = `<div class="search-preview">${highlightText(previewText, currentSearchTerm)}</div>`;
                 }
 
                 li.innerHTML = `
@@ -747,20 +481,14 @@
                     <div class="conversation-item-content">
                         <strong class="conversation-title">${conv.title}</strong>
                         <div class="conversation-timestamp">${formatTimestamp(conv.create_time)}</div>
-                        <div class="conversation-stats">
-                            用戶: ${conv.userMessages} | AI: ${conv.assistantMessages} | 字數: ${conv.wordCount}
-                        </div>
+                        <div class="conversation-stats">用戶: ${conv.userMessages} | AI: ${conv.assistantMessages} | 字數: ${conv.wordCount}</div>
                         ${previewHTML}
-                    </div>
-                `;
+                    </div>`;
                 li.addEventListener('click', (e) => {
                     if (e.target.type === 'checkbox') return;
                     currentConversationId = conv.id;
                     renderConversation(conv.id);
-                    // 在手機版上，點擊後隱藏側邊欄
-                    if (window.innerWidth <= 768) {
-                        sidebar.classList.remove('visible');
-                    }
+                    if (window.innerWidth <= 768) sidebar.classList.remove('visible');
                 });
                 conversationList.appendChild(li);
             });
@@ -769,15 +497,12 @@
 
         function findFirstMatchInConversation(conv, term) {
             for (const node of Object.values(conv.mapping)) {
-                const msg = node.message;
-                if (msg && msg.content && msg.content.parts) {
-                    const text = msg.content.parts.join('');
-                    if (text.toLowerCase().includes(term)) {
-                        const index = text.toLowerCase().indexOf(term);
-                        const start = Math.max(0, index - 30);
-                        const end = Math.min(text.length, index + term.length + 30);
-                        return `...${text.substring(start, end)}...`;
-                    }
+                const text = node.message?.content?.parts?.join('');
+                if (text && text.toLowerCase().includes(term.toLowerCase())) {
+                    const index = text.toLowerCase().indexOf(term.toLowerCase());
+                    const start = Math.max(0, index - 30);
+                    const end = Math.min(text.length, index + term.length + 30);
+                    return `...${text.substring(start, end)}...`;
                 }
             }
             return '';
@@ -800,220 +525,156 @@
             chatSearchInput.value = '';
             resetChatSearch();
 
-            const rootNodeId = Object.keys(conversation.mapping).find(key => conversation.mapping[key].parent == null);
-            let currentNode = conversation.mapping[rootNodeId];
+            const rootNode = Object.values(conversation.mapping).find(node => !node.parent);
             let path = [];
-            while(currentNode) {
+            let currentNode = rootNode;
+            while (currentNode) {
+                if (currentNode.message) path.push(currentNode);
                 const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
-                // 優先選擇 role 為 assistant 的子節點
-                let nextNode = children.find(child => child.message?.author.role === 'assistant');
-                if (!nextNode) {
-                    // 否則選擇第一個子節點
-                    nextNode = children[0];
-                }
-                
-                if (currentNode.message) {
-                    path.push(currentNode);
-                }
-                currentNode = nextNode;
+                currentNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
             }
             
             path.forEach(node => renderMessage(node));
-
-            // 更新列表中的 active 狀態
-            document.querySelectorAll('.conversation-item').forEach(item => {
-                item.classList.toggle('active', item.dataset.id === id);
-            });
+            document.querySelectorAll('.conversation-item').forEach(item => item.classList.toggle('active', item.dataset.id === id));
             
-            // 渲染後應用語法高亮
-            setTimeout(() => {
-                hljs.highlightAll();
-            }, 0);
+            setTimeout(() => hljs.highlightAll(), 0);
         }
 
         async function renderMessage(node) {
-            const messageData = node.message;
-            if (!messageData || !messageData.author || !['user', 'assistant'].includes(messageData.author.role)) {
-                return;
-            }
+            const msg = node.message;
+            if (!msg?.author || !['user', 'assistant'].includes(msg.author.role) || !msg.content?.parts?.join('')) return;
 
-            const content = messageData.content;
-            if (!content || !content.parts || (content.parts.length === 1 && content.parts[0] === '')) {
-                return;
-            }
-
+            const role = msg.author.role;
             const messageDiv = document.createElement('div');
-            const role = messageData.author.role;
             messageDiv.className = `message ${role}`;
             messageDiv.dataset.id = node.id;
 
             const avatar = role === 'user' ? 'U' : 'A';
-            const timestamp = messageData.create_time ? formatTimestamp(messageData.create_time) : 'N/A';
+            const timestamp = formatTimestamp(msg.create_time);
             
             let attachmentsHTML = '';
-            if (role === 'user' && messageData.metadata && messageData.metadata.attachments) {
-                for (const attachment of messageData.metadata.attachments) {
-                    const filePath = `files/${attachment.id}-${attachment.name}`;
-                    const file = fileMap.get(filePath);
-                    if (file && file.type.startsWith('image/')) {
-                         attachmentsHTML += `<img src="${URL.createObjectURL(file)}" alt="${attachment.name}" class="attachment-image">`;
+            if (role === 'user' && msg.metadata?.attachments) {
+                for (const att of msg.metadata.attachments) {
+                    const file = fileMap.get(`files/${att.id}-${att.name}`);
+                    if (file?.type.startsWith('image/')) {
+                        attachmentsHTML += `<img src="${URL.createObjectURL(file)}" alt="${att.name}" class="attachment-image">`;
                     }
                 }
             }
 
-            // 使用 marked 渲染 Markdown
-            const rawContent = content.parts.join('');
-            const renderedContent = marked.parse(rawContent, {
-                gfm: true,
-                breaks: true,
-                renderer: getCustomRenderer()
-            });
+            const rawContent = msg.content.parts.join('');
+            const renderedContent = marked.parse(rawContent, { gfm: true, breaks: true, renderer: getCustomRenderer() });
 
             messageDiv.innerHTML = `
                 <div class="avatar ${role}">${avatar}</div>
                 <div class="message-content">
+                    <button class="copy-message-btn" title="複製訊息內容">📋</button>
                     <div class="message-body">
                         ${attachmentsHTML}
                         ${renderedContent}
                     </div>
                     <div class="message-meta">${timestamp}</div>
-                </div>
-            `;
-            
+                </div>`;
             chatMessages.appendChild(messageDiv);
-            
-            // 為程式碼塊添加複製按鈕的事件監聽
-            messageDiv.querySelectorAll('.copy-code-btn').forEach(btn => {
-                btn.addEventListener('click', (e) => {
-                    const code = e.target.closest('.code-container').querySelector('code').innerText;
-                    navigator.clipboard.writeText(code).then(() => {
-                        e.target.textContent = 'Copied!';
-                        setTimeout(() => e.target.textContent = 'Copy', 2000);
-                    });
-                });
-            });
         }
         
         function getCustomRenderer() {
             const renderer = new marked.Renderer();
             renderer.code = (code, language) => {
                 const validLang = hljs.getLanguage(language) ? language : 'plaintext';
+                const highlightedCode = hljs.highlight(code, { language: validLang, ignoreIllegals: true }).value;
                 return `
                 <div class="code-container">
                     <div class="code-header">
                         <span>${validLang}</span>
                         <button class="copy-code-btn">Copy</button>
                     </div>
-                    <pre><code class="language-${validLang}">${code}</code></pre>
+                    <pre><code class="hljs language-${validLang}">${highlightedCode}</code></pre>
                 </div>`;
             };
             return renderer;
         }
 
+        function handleMessageClicks(e) {
+            const copyMsgBtn = e.target.closest('.copy-message-btn');
+            const copyCodeBtn = e.target.closest('.copy-code-btn');
+
+            if (copyMsgBtn) {
+                const messageBody = copyMsgBtn.closest('.message-content').querySelector('.message-body');
+                navigator.clipboard.writeText(messageBody.innerText).then(() => {
+                    copyMsgBtn.textContent = '✅';
+                    setTimeout(() => copyMsgBtn.textContent = '📋', 2000);
+                });
+            }
+
+            if (copyCodeBtn) {
+                const code = copyCodeBtn.closest('.code-container').querySelector('code').innerText;
+                navigator.clipboard.writeText(code).then(() => {
+                    copyCodeBtn.textContent = 'Copied!';
+                    setTimeout(() => copyCodeBtn.textContent = 'Copy', 2000);
+                });
+            }
+        }
 
         // --- 導出功能 ---
         async function exportConversation(format) {
-            if (!currentConversationId) {
-                alert('請先選擇一個對話。');
-                return;
-            }
+            if (!currentConversationId) { alert('請先選擇一個對話。'); return; }
             const conversation = allConversations.find(c => c.id === currentConversationId);
             if (!conversation) return;
 
             if (format === 'txt') {
-                const content = generateTxtContent(conversation);
-                downloadFile(content, `${conversation.title}.txt`, 'text/plain');
+                downloadFile(generateTxtContent(conversation), `${conversation.title}.txt`, 'text/plain');
             } else if (format === 'pdf') {
                 await generateAndDownloadPdf(conversation);
             }
         }
 
         async function exportSelectedConversations(format) {
-            const selectedCheckboxes = document.querySelectorAll('.conversation-checkbox:checked');
-            if (selectedCheckboxes.length === 0) {
-                alert('請至少勾選一個對話進行導出。');
-                return;
-            }
-
-            const selectedIds = Array.from(selectedCheckboxes).map(cb => cb.dataset.id);
+            const selectedIds = Array.from(document.querySelectorAll('.conversation-checkbox:checked')).map(cb => cb.dataset.id);
+            if (selectedIds.length === 0) { alert('請至少勾選一個對話進行導出。'); return; }
             const conversationsToExport = allConversations.filter(c => selectedIds.includes(c.id));
-
-            const zip = new JSZip();
             
-            if (format === 'txt') {
-                conversationsToExport.forEach(conv => {
-                    const content = generateTxtContent(conv);
-                    zip.file(`${conv.title}.txt`, content);
-                });
-            } else if (format === 'pdf') {
-                // PDF 導出是異步的
-                for (const conv of conversationsToExport) {
+            const zip = new JSZip();
+            document.getElementById(`export-zip-${format}`).textContent = '處理中...';
+
+            for (const conv of conversationsToExport) {
+                const fileName = `${conv.title.replace(/[\\/:*?"<>|]/g, '')}.${format}`;
+                if (format === 'txt') {
+                    zip.file(fileName, generateTxtContent(conv));
+                } else if (format === 'pdf') {
                     const pdfBlob = await generatePdfBlob(conv);
-                    zip.file(`${conv.title}.pdf`, pdfBlob);
+                    zip.file(fileName, pdfBlob);
                 }
             }
 
             zip.generateAsync({ type: 'blob' }).then(blob => {
                 downloadFile(blob, `ChatGPT_Export_${format}.zip`, 'application/zip');
+                document.getElementById(`export-zip-${format}`).textContent = `導出所選 (${format.toUpperCase()})`;
             });
         }
 
         function generateTxtContent(conversation) {
-            let content = `標題: ${conversation.title}\n`;
-            content += `創建時間: ${formatTimestamp(conversation.create_time)}\n`;
-            content += '----------------------------------------\n\n';
-
-            const rootNodeId = Object.keys(conversation.mapping).find(key => conversation.mapping[key].parent == null);
-            let currentNode = conversation.mapping[rootNodeId];
+            let content = `標題: ${conversation.title}\n創建時間: ${formatTimestamp(conversation.create_time)}\n----------------------------------------\n\n`;
+            const rootNode = Object.values(conversation.mapping).find(node => !node.parent);
             let path = [];
-            while(currentNode) {
-                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
-                let nextNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
+            let currentNode = rootNode;
+            while (currentNode) {
                 if (currentNode.message) path.push(currentNode);
-                currentNode = nextNode;
+                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
+                currentNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
             }
-
             path.forEach(node => {
                 const msg = node.message;
-                if (msg && msg.author && ['user', 'assistant'].includes(msg.author.role)) {
-                    const role = msg.author.role === 'user' ? '用戶' : 'AI';
-                    const time = msg.create_time ? formatTimestamp(msg.create_time) : '';
-                    const text = msg.content.parts.join('');
-                    content += `[${role} - ${time}]\n${text}\n\n`;
+                if (msg?.author && ['user', 'assistant'].includes(msg.author.role)) {
+                    content += `[${msg.author.role === 'user' ? '用戶' : 'AI'} - ${formatTimestamp(msg.create_time)}]\n${msg.content.parts.join('')}\n\n`;
                 }
             });
             return content;
         }
 
         async function generateAndDownloadPdf(conversation) {
-            const pdfContainer = document.getElementById('pdf-export-container');
-            pdfContainer.innerHTML = generatePdfHtml(conversation);
-            pdfContainer.style.display = 'block';
-
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'pt', 'a4');
-            const pages = pdfContainer.querySelectorAll('.pdf-page');
-
-            for (let i = 0; i < pages.length; i++) {
-                const page = pages[i];
-                const canvas = await html2canvas(page, {
-                    scale: 2, // 提高解析度
-                    useCORS: true
-                });
-                const imgData = canvas.toDataURL('image/png');
-                const imgProps = pdf.getImageProperties(imgData);
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                
-                if (i > 0) {
-                    pdf.addPage();
-                }
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
-            }
-
-            pdf.save(`${conversation.title}.pdf`);
-            pdfContainer.style.display = 'none';
-            pdfContainer.innerHTML = '';
+            const blob = await generatePdfBlob(conversation);
+            downloadFile(blob, `${conversation.title}.pdf`, 'application/pdf');
         }
         
         async function generatePdfBlob(conversation) {
@@ -1022,20 +683,26 @@
             pdfContainer.style.display = 'block';
 
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('p', 'pt', 'a4');
-            const pages = pdfContainer.querySelectorAll('.pdf-page');
+            const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
+            const page = pdfContainer.querySelector('.pdf-page');
+            const canvas = await html2canvas(page, { scale: 2, useCORS: true, windowWidth: page.scrollWidth, windowHeight: page.scrollHeight });
+            const imgData = canvas.toDataURL('image/png');
+            const imgProps = pdf.getImageProperties(imgData);
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
+            let heightLeft = pdfHeight;
+            let position = 0;
 
-            for (let i = 0; i < pages.length; i++) {
-                const page = pages[i];
-                const canvas = await html2canvas(page, { scale: 2, useCORS: true });
-                const imgData = canvas.toDataURL('image/png');
-                const imgProps = pdf.getImageProperties(imgData);
-                const pdfWidth = pdf.internal.pageSize.getWidth();
-                const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-                if (i > 0) pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);
+            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+            heightLeft -= pdf.internal.pageSize.getHeight();
+
+            while (heightLeft > 0) {
+                position = heightLeft - pdfHeight;
+                pdf.addPage();
+                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
+                heightLeft -= pdf.internal.pageSize.getHeight();
             }
-
+            
             pdfContainer.style.display = 'none';
             pdfContainer.innerHTML = '';
             return pdf.output('blob');
@@ -1043,76 +710,65 @@
 
         function generatePdfHtml(conversation) {
             let messagesHtml = '';
-            const rootNodeId = Object.keys(conversation.mapping).find(key => conversation.mapping[key].parent == null);
-            let currentNode = conversation.mapping[rootNodeId];
+            const rootNode = Object.values(conversation.mapping).find(node => !node.parent);
             let path = [];
-            while(currentNode) {
-                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
-                let nextNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
+            let currentNode = rootNode;
+            while (currentNode) {
                 if (currentNode.message) path.push(currentNode);
-                currentNode = nextNode;
+                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
+                currentNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
             }
-
             path.forEach(node => {
                 const msg = node.message;
-                if (msg && msg.author && ['user', 'assistant'].includes(msg.author.role)) {
-                    const role = msg.author.role;
-                    const time = msg.create_time ? formatTimestamp(msg.create_time) : '';
-                    const text = marked.parse(msg.content.parts.join(''), { gfm: true, breaks: true });
+                if (msg?.author && ['user', 'assistant'].includes(msg.author.role)) {
+                    const text = marked.parse(msg.content.parts.join(''), { gfm: true, breaks: true }).replace(/<pre>/g, '<pre style="white-space: pre-wrap; word-break: break-all;">');
                     messagesHtml += `
-                        <div class="pdf-message ${role}">
+                        <div class="pdf-message ${msg.author.role}">
                             <div class="pdf-message-content">
                                 <div>${text}</div>
-                                <div class="pdf-message-meta">${time}</div>
+                                <div class="pdf-message-meta">${formatTimestamp(msg.create_time)}</div>
                             </div>
-                        </div>
-                    `;
+                        </div>`;
                 }
             });
-
-            return `
-                <div class="pdf-page">
-                    <div class="pdf-header">
-                        <h2>${conversation.title}</h2>
-                        <p>創建於: ${formatTimestamp(conversation.create_time)}</p>
-                    </div>
-                    ${messagesHtml}
-                </div>
-            `;
+            return `<div class="pdf-page"><div class="pdf-header"><h2>${conversation.title}</h2><p>創建於: ${formatTimestamp(conversation.create_time)}</p></div><div class="pdf-body">${messagesHtml}</div></div>`;
         }
         
         // --- 聊天內文搜尋 ---
         function handleChatSearch(e) {
-            const term = e.target.value.trim().toLowerCase();
-            if (term === chatSearchState.term) return;
+            const term = e.target.value.trim();
+            // 先清除舊的 highlight
+            chatMessages.innerHTML = chatMessages.innerHTML.replace(/<\/?mark class="chat-highlight">/g, "");
+            
+            chatSearchState = { term: term, results: [], currentIndex: -1 };
+            if (!term) { updateSearchCounter(); return; }
 
-            chatSearchState.term = term;
-            resetChatSearch();
-            if (!term) return;
-
-            const messageBodies = chatMessages.querySelectorAll('.message-body');
-            messageBodies.forEach(body => {
+            const regex = new RegExp(`(${term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
+            chatMessages.querySelectorAll('.message-body').forEach(body => {
                 const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null, false);
                 let node;
+                const nodesToReplace = [];
                 while (node = walker.nextNode()) {
-                    const text = node.nodeValue;
-                    const lowerText = text.toLowerCase();
-                    if (lowerText.includes(term)) {
-                        const fragment = document.createDocumentFragment();
-                        let lastIndex = 0;
-                        lowerText.replace(new RegExp(term, 'g'), (match, index) => {
-                            fragment.appendChild(document.createTextNode(text.substring(lastIndex, index)));
-                            const mark = document.createElement('mark');
-                            mark.className = 'chat-highlight';
-                            mark.textContent = text.substring(index, index + match.length);
-                            fragment.appendChild(mark);
-                            chatSearchState.results.push(mark);
-                            lastIndex = index + match.length;
-                        });
-                        fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
-                        node.parentNode.replaceChild(fragment, node);
+                    if (node.nodeValue.match(regex)) {
+                        nodesToReplace.push(node);
                     }
                 }
+                nodesToReplace.forEach(node => {
+                    const fragment = document.createDocumentFragment();
+                    const parts = node.nodeValue.split(regex);
+                    for (let i = 0; i < parts.length; i++) {
+                        if (i % 2 === 1) {
+                            const mark = document.createElement('mark');
+                            mark.className = 'chat-highlight';
+                            mark.textContent = parts[i];
+                            fragment.appendChild(mark);
+                            chatSearchState.results.push(mark);
+                        } else {
+                            fragment.appendChild(document.createTextNode(parts[i]));
+                        }
+                    }
+                    node.parentNode.replaceChild(fragment, node);
+                });
             });
 
             if (chatSearchState.results.length > 0) {
@@ -1122,21 +778,9 @@
             updateSearchCounter();
         }
 
-        function resetChatSearch() {
-            chatMessages.innerHTML = chatMessages.innerHTML.replace(/<mark class="chat-highlight">(.*?)<\/mark>/g, '$1');
-            chatSearchState = { term: chatSearchState.term, results: [], currentIndex: -1 };
-            updateSearchCounter();
-        }
-
--        function navigateSearchResults(direction) {
+        function navigateSearchResults(direction) {
             if (chatSearchState.results.length === 0) return;
-            chatSearchState.currentIndex += direction;
-            if (chatSearchState.currentIndex < 0) {
-                chatSearchState.currentIndex = chatSearchState.results.length - 1;
-            }
-            if (chatSearchState.currentIndex >= chatSearchState.results.length) {
-                chatSearchState.currentIndex = 0;
-            }
+            chatSearchState.currentIndex = (chatSearchState.currentIndex + direction + chatSearchState.results.length) % chatSearchState.results.length;
             highlightCurrentSearchResult();
             updateSearchCounter();
         }
@@ -1146,10 +790,7 @@
                 el.style.outline = index === chatSearchState.currentIndex ? '2px solid #ff4757' : 'none';
             });
             if (chatSearchState.currentIndex > -1) {
-                chatSearchState.results[chatSearchState.currentIndex].scrollIntoView({
-                    behavior: 'smooth',
-                    block: 'center'
-                });
+                chatSearchState.results[chatSearchState.currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
             }
         }
 
@@ -1164,33 +805,22 @@
         // --- 主題切換 ---
         function initTheme() {
             const savedTheme = localStorage.getItem('theme') || 'light';
-            if (savedTheme === 'dark') {
-                document.body.classList.replace('light-mode', 'dark-mode');
-                themeToggle.textContent = '☀️';
-            }
+            document.body.classList.add(savedTheme + '-mode');
+            if (savedTheme === 'dark') themeToggle.textContent = '☀️';
         }
 
         function toggleTheme() {
-            if (document.body.classList.contains('light-mode')) {
-                document.body.classList.replace('light-mode', 'dark-mode');
-                themeToggle.textContent = '☀️';
-                localStorage.setItem('theme', 'dark');
-            } else {
-                document.body.classList.replace('dark-mode', 'light-mode');
-                themeToggle.textContent = '🌙';
-                localStorage.setItem('theme', 'light');
-            }
+            const isLight = document.body.classList.contains('light-mode');
+            document.body.classList.replace(isLight ? 'light-mode' : 'dark-mode', isLight ? 'dark-mode' : 'light-mode');
+            themeToggle.textContent = isLight ? '☀️' : '🌙';
+            localStorage.setItem('theme', isLight ? 'dark' : 'light');
         }
 
         // --- 輔助工具 ---
         function formatTimestamp(unixTimestamp) {
             if (!unixTimestamp) return 'N/A';
             const date = new Date(unixTimestamp * 1000);
-            return date.toLocaleString('zh-TW', {
-                year: 'numeric', month: '2-digit', day: '2-digit',
-                hour: '2-digit', minute: '2-digit', second: '2-digit',
-                hour12: false
-            }).replace(/\//g, '-');
+            return new Intl.DateTimeFormat('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(date).replace(/\//g, '-');
         }
 
         function downloadFile(content, fileName, contentType) {
@@ -1198,10 +828,11 @@
             const file = new Blob([content], { type: contentType });
             a.href = URL.createObjectURL(file);
             a.download = fileName;
+            document.body.appendChild(a);
             a.click();
+            document.body.removeChild(a);
             URL.revokeObjectURL(a.href);
         }
-
     })();
     </script>
 </body>
