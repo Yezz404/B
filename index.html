@@ -1,839 +1,912 @@
-<!DOCTYPE html>
-<html lang="zh-Hant">
+<!doctype html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>聊天記錄檢視器</title>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jszip/dist/jszip.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
-    <style>
-        /* --- 全局與主題變數 --- */
-        :root {
-            --font-family: 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
-            /* 淺色主題 (可愛粉色系) */
-            --light-bg: #fff8f7;
-            --light-sidebar-bg: #ffe4e1;
-            --light-chat-bg: #ffffff;
-            --light-user-bubble: #f0f8ff;
-            --light-assistant-bubble: #fff0f5;
-            --light-text-primary: #333;
-            --light-text-secondary: #777;
-            --light-accent: #ffb6c1;
-            --light-accent-hover: #ff9a9e;
-            --light-border: #f0d0d0;
-            --light-scrollbar-thumb: #ffb6c1;
-            --light-scrollbar-track: #ffe4e1;
-            --light-highlight-bg: #ffdd77;
-            --light-highlight-text: #000;
-            /* 深色主題 */
-            --dark-bg: #1e1e1e;
-            --dark-sidebar-bg: #252526;
-            --dark-chat-bg: #1e1e1e;
-            --dark-user-bubble: #2d3748;
-            --dark-assistant-bubble: #333;
-            --dark-text-primary: #e0e0e0;
-            --dark-text-secondary: #a0a0a0;
-            --dark-accent: #007acc;
-            --dark-accent-hover: #009ae0;
-            --dark-border: #444;
-            --dark-scrollbar-thumb: #555;
-            --dark-scrollbar-track: #252526;
-            --dark-highlight-bg: #ffd700;
-            --dark-highlight-text: #000;
-        }
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Chat Records</title>
+<!-- Dependencies (CDN) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/styles/github-dark.min.css">
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
+<!-- Optional: gpt-3-encoder for a more accurate token count if available. If it fails to load, a fallback is used. -->
+<script src="https://cdn.jsdelivr.net/npm/gpt-3-encoder@1.1.4/dist/encoder.min.js"></script>
 
-        body {
-            font-family: var(--font-family);
-            margin: 0;
-            display: flex;
-            height: 100vh;
-            overflow: hidden;
-            transition: background-color 0.3s, color 0.3s;
-        }
-        body.light-mode { background-color: var(--light-bg); color: var(--light-text-primary); }
-        body.dark-mode { background-color: var(--dark-bg); color: var(--dark-text-primary); }
-
-        /* --- 自訂滾動條 --- */
-        ::-webkit-scrollbar { width: 12px; }
-        body.light-mode ::-webkit-scrollbar-track { background: var(--light-scrollbar-track); }
-        body.light-mode ::-webkit-scrollbar-thumb { background: var(--light-scrollbar-thumb); border-radius: 6px; border: 2px solid var(--light-scrollbar-track); }
-        body.light-mode ::-webkit-scrollbar-thumb:hover { background: var(--light-accent-hover); }
-        body.dark-mode ::-webkit-scrollbar-track { background: var(--dark-scrollbar-track); }
-        body.dark-mode ::-webkit-scrollbar-thumb { background: var(--dark-scrollbar-thumb); border-radius: 6px; border: 2px solid var(--dark-scrollbar-track); }
-        body.dark-mode ::-webkit-scrollbar-thumb:hover { background: #777; }
-
-        /* --- 主佈局 --- */
-        .sidebar { width: 320px; flex-shrink: 0; display: flex; flex-direction: column; border-right: 1px solid; transition: background-color 0.3s, border-color 0.3s; }
-        body.light-mode .sidebar { background-color: var(--light-sidebar-bg); border-color: var(--light-border); }
-        body.dark-mode .sidebar { background-color: var(--dark-sidebar-bg); border-color: var(--dark-border); }
-        
-        .chat-container { flex-grow: 1; display: flex; flex-direction: column; height: 100vh; }
-        body.light-mode .chat-container { background-color: var(--light-chat-bg); }
-        body.dark-mode .chat-container { background-color: var(--dark-chat-bg); }
-
-        /* --- 歡迎介面 --- */
-        #welcome-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; height: 100%; padding: 20px; }
-        #welcome-screen h1 { font-size: 2.5em; margin-bottom: 10px; }
-        body.light-mode #welcome-screen h1 { color: var(--light-accent); }
-        body.dark-mode #welcome-screen h1 { color: var(--dark-accent); }
-        #welcome-screen p { font-size: 1.2em; max-width: 600px; margin-bottom: 30px; }
-        #upload-label { padding: 15px 30px; border-radius: 50px; cursor: pointer; font-size: 1.2em; font-weight: bold; transition: transform 0.2s, box-shadow 0.2s; }
-        body.light-mode #upload-label { background-color: var(--light-accent); color: white; }
-        body.dark-mode #upload-label { background-color: var(--dark-accent); color: white; }
-        #upload-label:hover { transform: scale(1.05); box-shadow: 0 4px 15px rgba(0,0,0,0.2); }
-        #file-input { display: none; }
-        
-        /* --- 側邊欄 --- */
-        .sidebar-header { padding: 15px; border-bottom: 1px solid; }
-        body.light-mode .sidebar-header { border-color: var(--light-border); }
-        body.dark-mode .sidebar-header { border-color: var(--dark-border); }
-        .sidebar-controls { display: flex; flex-direction: column; gap: 10px; }
-        .search-sort-container { display: flex; gap: 10px; align-items: center; }
-        #search-conversations { flex-grow: 1; }
-        .control-input, .control-select { width: 100%; box-sizing: border-box; padding: 8px 12px; border-radius: 20px; border: 1px solid; font-size: 14px; }
-        body.light-mode .control-input, body.light-mode .control-select { background-color: white; border-color: var(--light-border); color: var(--light-text-primary); }
-        body.dark-mode .control-input, body.dark-mode .control-select { background-color: #333; border-color: var(--dark-border); color: var(--dark-text-primary); }
-        .export-buttons { display: flex; gap: 10px; }
-        .export-buttons button { flex-grow: 1; }
-        .btn { padding: 8px 12px; border: none; border-radius: 20px; cursor: pointer; font-weight: 600; transition: background-color 0.2s, transform 0.1s; }
-        .btn:active { transform: scale(0.95); }
-        body.light-mode .btn.primary { background-color: var(--light-accent); color: white; }
-        body.light-mode .btn.primary:hover { background-color: var(--light-accent-hover); }
-        body.dark-mode .btn.primary { background-color: var(--dark-accent); color: white; }
-        body.dark-mode .btn.primary:hover { background-color: var(--dark-accent-hover); }
-        #conversation-list { list-style: none; padding: 0; margin: 0; overflow-y: auto; flex-grow: 1; }
-        .conversation-item { padding: 15px; cursor: pointer; border-bottom: 1px solid; transition: background-color 0.2s; position: relative; }
-        .conversation-item input[type="checkbox"] { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); width: 18px; height: 18px; }
-        .conversation-item-content { margin-left: 30px; }
-        body.light-mode .conversation-item { border-color: var(--light-border); }
-        body.dark-mode .conversation-item { border-color: var(--dark-border); }
-        body.light-mode .conversation-item:hover { background-color: #fff0f5; }
-        body.dark-mode .conversation-item:hover { background-color: #333; }
-        .conversation-item.active { font-weight: bold; }
-        body.light-mode .conversation-item.active { background-color: #ffdde5 !important; }
-        body.dark-mode .conversation-item.active { background-color: #005a9e !important; }
-        .conversation-title { display: block; font-size: 1em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-bottom: 5px; }
-        .conversation-timestamp, .conversation-stats { font-size: 0.75em; }
-        body.light-mode .conversation-timestamp, body.light-mode .conversation-stats { color: var(--light-text-secondary); }
-        body.dark-mode .conversation-timestamp, body.dark-mode .conversation-stats { color: var(--dark-text-secondary); }
-        .search-preview { font-size: 0.8em; margin-top: 5px; padding: 5px; border-radius: 4px; max-height: 50px; overflow: hidden; word-break: break-all; }
-        body.light-mode .search-preview { background-color: rgba(255, 255, 255, 0.5); }
-        body.dark-mode .search-preview { background-color: rgba(0, 0, 0, 0.2); }
-        .search-preview mark { padding: 0; font-weight: bold; }
-        body.light-mode .search-preview mark { background-color: var(--light-highlight-bg); color: var(--light-highlight-text); }
-        body.dark-mode .search-preview mark { background-color: var(--dark-highlight-bg); color: var(--dark-highlight-text); }
-        .sidebar-footer { padding: 10px 15px; display: flex; justify-content: space-between; align-items: center; border-top: 1px solid; }
-        body.light-mode .sidebar-footer { border-color: var(--light-border); }
-        body.dark-mode .sidebar-footer { border-color: var(--dark-border); }
-        #conversation-count { font-size: 0.8em; }
-
-        /* --- 主聊天視窗 --- */
-        #chat-view { display: flex; flex-direction: column; height: 100%; }
-        .chat-header { padding: 10px 20px; border-bottom: 1px solid; display: flex; justify-content: space-between; align-items: center; flex-shrink: 0; }
-        body.light-mode .chat-header { border-color: var(--light-border); }
-        body.dark-mode .chat-header { border-color: var(--dark-border); }
-        #chat-title { font-size: 1.2em; font-weight: bold; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .chat-header-controls { display: flex; align-items: center; gap: 10px; }
-        #chat-search-box { display: flex; align-items: center; gap: 5px; }
-        #chat-search-box input { width: 150px; }
-        #chat-search-nav { font-size: 0.9em; }
-        #chat-messages { flex-grow: 1; overflow-y: auto; padding: 20px; }
-
-        .message { display: flex; margin-bottom: 20px; max-width: 90%; }
-        .message-content { padding: 12px 18px; border-radius: 18px; position: relative; }
-        .message-content:hover .copy-message-btn { opacity: 1; }
-        .message-content p:last-child { margin-bottom: 0; }
-        .message-content p:first-child { margin-top: 0; }
-        .message.user { margin-left: auto; flex-direction: row-reverse; }
-        .message.assistant { margin-right: auto; }
-        body.light-mode .message.user .message-content { background-color: var(--light-user-bubble); }
-        body.light-mode .message.assistant .message-content { background-color: var(--light-assistant-bubble); }
-        body.dark-mode .message.user .message-content { background-color: var(--dark-user-bubble); }
-        body.dark-mode .message.assistant .message-content { background-color: var(--dark-assistant-bubble); }
-        .avatar { width: 36px; height: 36px; border-radius: 50%; text-align: center; line-height: 36px; font-size: 18px; font-weight: bold; flex-shrink: 0; margin: 0 10px; }
-        body.light-mode .avatar.user { background-color: var(--light-accent); color: white; }
-        body.light-mode .avatar.assistant { background-color: #98d8b6; color: white; }
-        body.dark-mode .avatar.user { background-color: var(--dark-accent); color: white; }
-        body.dark-mode .avatar.assistant { background-color: #3a5a40; color: white; }
-        .message-meta { font-size: 0.75em; margin-top: 5px; text-align: right; }
-        .message.assistant .message-meta { text-align: left; }
-        body.light-mode .message-meta { color: var(--light-text-secondary); }
-        body.dark-mode .message-meta { color: var(--dark-text-secondary); }
-        
-        /* --- 訊息內容樣式 --- */
-        .message-body { word-wrap: break-word; }
-        .message-body a { font-weight: bold; }
-        body.light-mode .message-body a { color: #ff69b4; }
-        body.dark-mode .message-body a { color: #87ceeb; }
-        .message-body pre { position: relative; padding: 1em; padding-top: 2.8em; border-radius: 8px; background-color: #282c34; color: #abb2bf; white-space: pre-wrap; word-wrap: break-word; }
-        .code-header { position: absolute; top: 0; left: 0; right: 0; padding: 5px 10px; background-color: #3c4049; color: #dcdcdc; font-size: 0.8em; border-top-left-radius: 8px; border-top-right-radius: 8px; display: flex; justify-content: space-between; align-items: center; }
-        .copy-code-btn { background: #555; color: white; border: none; padding: 3px 8px; border-radius: 5px; cursor: pointer; font-size: 0.8em; }
-        .copy-code-btn:hover { background: #666; }
-        .message-body code:not(pre code) { padding: 0.2em 0.4em; margin: 0; font-size: 85%; border-radius: 3px; }
-        body.light-mode .message-body code:not(pre code) { background-color: rgba(255, 182, 193, 0.3); }
-        body.dark-mode .message-body code:not(pre code) { background-color: rgba(135, 206, 235, 0.2); }
-        .message-body blockquote { margin: 1em 0; padding-left: 1em; border-left: 4px solid; }
-        body.light-mode .message-body blockquote { border-color: var(--light-accent); background-color: #fff5f8; }
-        body.dark-mode .message-body blockquote { border-color: var(--dark-accent); background-color: #2a2a2a; }
-        .message-body table { border-collapse: collapse; width: 100%; margin: 1em 0; }
-        .message-body th, .message-body td { border: 1px solid; padding: 8px; }
-        body.light-mode .message-body th, body.light-mode .message-body td { border-color: var(--light-border); }
-        body.dark-mode .message-body th, body.dark-mode .message-body td { border-color: var(--dark-border); }
-        body.light-mode .message-body th { background-color: #ffe4e1; }
-        body.dark-mode .message-body th { background-color: #333; }
-        .attachment-image { max-width: 100%; border-radius: 8px; margin-bottom: 10px; cursor: pointer; }
-        mark.chat-highlight { background-color: var(--dark-highlight-bg); color: var(--dark-highlight-text); padding: 2px; border-radius: 3px; outline: 1px solid red; }
-        .copy-message-btn { position: absolute; top: 8px; right: 8px; background: #ccc; border: none; border-radius: 50%; width: 28px; height: 28px; cursor: pointer; opacity: 0; transition: opacity 0.2s; font-size: 14px; display: flex; align-items: center; justify-content: center; }
-        body.dark-mode .copy-message-btn { background: #555; color: #fff; }
-
-        /* --- 浮動按鈕 --- */
-        .floating-buttons { position: absolute; bottom: 20px; right: 20px; display: flex; flex-direction: column; gap: 10px; z-index: 100; }
-        .floating-btn { width: 48px; height: 48px; border-radius: 50%; border: none; cursor: pointer; font-size: 24px; display: flex; justify-content: center; align-items: center; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-
-        /* --- 主題切換按鈕 --- */
-        .theme-switch { width: 40px; height: 40px; border-radius: 50%; border: none; cursor: pointer; font-size: 20px; display: flex; justify-content: center; align-items: center; transition: background-color 0.3s, color 0.3s; }
-        body.light-mode .theme-switch { background-color: #fff; color: #333; }
-        body.dark-mode .theme-switch { background-color: #444; color: #fff; }
-
-        /* --- PDF 導出模板 --- */
-        #pdf-export-container { display: none; position: absolute; left: -9999px; width: 800px; font-family: var(--font-family); color: #333; }
-        .pdf-page { background: white; padding: 40px; margin-bottom: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.1); min-height: 1120px; display: flex; flex-direction: column; }
-        .pdf-header { text-align: center; border-bottom: 2px solid #ffe4e1; padding-bottom: 20px; margin-bottom: 30px; flex-shrink: 0; }
-        .pdf-header h2 { color: #ffb6c1; margin: 0; font-size: 24px; }
-        .pdf-header p { color: #777; font-size: 14px; margin: 5px 0 0; }
-        .pdf-body { flex-grow: 1; }
-        .pdf-message { display: flex; margin-bottom: 15px; max-width: 100%; }
-        .pdf-message.user { justify-content: flex-end; }
-        .pdf-message.assistant { justify-content: flex-start; }
-        .pdf-message-content { padding: 10px 15px; border-radius: 15px; max-width: 75%; word-break: break-word; }
-        .pdf-message.user .pdf-message-content { background-color: #e6f3ff; }
-        .pdf-message.assistant .pdf-message-content { background-color: #fff0f5; }
-        .pdf-message-meta { font-size: 10px; color: #999; margin-top: 4px; }
-        .pdf-message.user .pdf-message-meta { text-align: right; }
-        .pdf-message.assistant .pdf-message-meta { text-align: left; }
-        .pdf-message pre { white-space: pre-wrap; word-break: break-all; background-color: #f0f0f0; padding: 10px; border-radius: 5px; }
-
-        /* --- 響應式設計 --- */
-        @media (max-width: 768px) {
-            body { flex-direction: column; }
-            .sidebar { width: 100%; height: 100vh; position: absolute; top: 0; left: -100%; transition: left 0.3s ease-in-out; z-index: 1000; }
-            .sidebar.visible { left: 0; }
-            .chat-container { width: 100%; }
-            .chat-header { padding: 10px 15px; }
-            #chat-title { max-width: calc(100vw - 180px); }
-            .back-to-list-btn { display: block !important; margin-right: 10px; }
-            .message { max-width: 95%; }
-        }
-        .hidden { display: none !important; }
-    </style>
+<style>
+  :root{
+    --bg:#fff9fb;
+    --panel:#fff;
+    --muted:#8b7d86;
+    --accent:#ffd2d2;
+    --pink:#ffe4e1;
+    --bubble-user:#fff;
+    --bubble-assistant:#fffaf0;
+    --border:#f1dfe0;
+    --text:#222;
+    --code-bg:#0b0b0b;
+    --scrollbar:#ffb3b3;
+  }
+  *{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+  body{margin:0;background:linear-gradient(180deg,var(--bg),#fff);color:var(--text);height:100vh;display:flex;overflow:hidden}
+  /* Sidebar */
+  .sidebar{width:340px;min-width:260px;background:linear-gradient(0deg,var(--panel),#fff);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:12px}
+  .title{font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px}
+  .uploadRow{display:flex;gap:8px;align-items:center}
+  .btn{background:var(--accent);border-radius:10px;padding:8px 10px;border:1px solid #f5c7c7;cursor:pointer}
+  .btn.secondary{background:transparent;border:1px dashed #f5c7c7}
+  .controls{display:flex;gap:8px;flex-wrap:wrap}
+  .search{display:flex;gap:8px;align-items:center}
+  .search input{padding:8px;border-radius:8px;border:1px solid #eee;width:100%}
+  .convList{overflow:auto;flex:1;padding-right:6px;margin-top:8px}
+  .convItem{padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:6px}
+  .convItem:hover{background:#fff6f6;border-color:#ffe6e6}
+  .convTitle{font-weight:600}
+  .convMeta{font-size:12px;color:var(--muted)}
+  .convStats{font-size:12px;color:var(--muted);display:flex;gap:8px}
+  .topbar{display:flex;gap:8px;align-items:center}
+  /* Main content */
+  .main{flex:1;display:flex;flex-direction:column;height:100vh}
+  .header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,0.6),transparent)}
+  .chatArea{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
+  .controlsRow{display:flex;gap:8px;align-items:center}
+  .message{max-width:75%;padding:12px;border-radius:14px;box-shadow:0 1px 0 rgba(0,0,0,0.02);white-space:pre-wrap;word-break:break-word}
+  .msgUser{align-self:flex-end;background:var(--bubble-user);border:1px solid #f0e7e7}
+  .msgAssistant{align-self:flex-start;background:var(--bubble-assistant);border:1px solid #f3e9e0}
+  .msgMeta{font-size:12px;color:var(--muted);margin-bottom:6px}
+  .msgActions{display:flex;gap:8px;margin-top:6px}
+  .copyBtn{padding:4px 8px;border-radius:8px;border:1px solid #eee;background:transparent;cursor:pointer;font-size:12px}
+  pre.codeBlock{background:#111;padding:12px;border-radius:8px;color:#eee;overflow:auto;white-space:pre-wrap;word-wrap:break-word}
+  .versionBadge{font-size:11px;padding:4px 6px;border-radius:8px;background:#ffdede;color:#6a0505}
+  /* Custom scrollbar */
+  ::-webkit-scrollbar{height:10px;width:10px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:8px}
+  /* Mobile */
+  @media (max-width:900px){
+    .sidebar{display:none}
+    .main{padding:8px}
+  }
+  /* small helper */
+  .muted{color:var(--muted);font-size:13px}
+  .small{font-size:12px;color:var(--muted)}
+  .highlight{background:rgba(255,200,200,0.6);padding:2px 3px;border-radius:4px}
+  .actionsTop{display:flex;gap:8px;align-items:center}
+  .tag{background:#fff2f2;border:1px solid #ffe6e6;padding:4px 6px;border-radius:6px;font-size:12px}
+  .filePreview{max-width:320px;border-radius:8px;border:1px solid #eee;padding:6px;margin-bottom:8px}
+</style>
 </head>
-<body class="light-mode">
+<body>
+  <div class="sidebar" id="sidebar">
+    <div class="title">Chat Records</div>
+    <div class="uploadRow">
+      <label class="btn" title="Upload a single conversations.json file">
+        Upload JSON<input id="fileJson" type="file" accept=".json" style="display:none">
+      </label>
+      <label class="btn secondary" title="Upload folder exported by OpenAI (contains conversations.json and attachments)">
+        Upload Folder<input id="dirInput" type="file" webkitdirectory directory multiple style="display:none">
+      </label>
+    </div>
 
-    <aside class="sidebar">
-        <div class="sidebar-header">
-            <div class="sidebar-controls">
-                <div class="search-sort-container">
-                    <input type="search" id="search-conversations" placeholder="🔍 搜尋對話標題或內容..." class="control-input">
-                    <select id="sort-conversations" class="control-select">
-                        <option value="newest">最新</option>
-                        <option value="oldest">最舊</option>
-                        <option value="az">A-Z</option>
-                        <option value="za">Z-A</option>
-                    </select>
-                </div>
-                <div class="export-buttons">
-                    <button id="export-zip-txt" class="btn primary">導出所選 (TXT)</button>
-                    <button id="export-zip-pdf" class="btn primary">導出所選 (PDF)</button>
-                </div>
-            </div>
-        </div>
-        <ul id="conversation-list"></ul>
-        <div class="sidebar-footer">
-            <span id="conversation-count">未載入檔案</span>
-            <button id="theme-toggle" class="theme-switch">🌙</button>
-        </div>
-    </aside>
+    <div class="controls">
+      <div class="search" style="flex:1">
+        <input id="globalSearch" placeholder="Search conversations or messages..." />
+      </div>
+      <div class="actionsTop">
+        <button class="btn" id="exportAllTxt">Export All .txt</button>
+        <button class="btn" id="exportAllZip">Export Selected .zip</button>
+      </div>
+    </div>
 
-    <main class="chat-container">
-        <div id="welcome-screen">
-            <h1>聊天記錄檢視器</h1>
-            <p>一個可愛、強大且保護隱私的 ChatGPT 聊天記錄查看工具。所有數據都在您的瀏覽器本地處理，不會上傳到任何伺服器。</p>
-            <label for="file-input" id="upload-label">點擊此處選擇您的 ChatGPT 導出資料夾</label>
-            <input type="file" id="file-input" webkitdirectory directory multiple>
-            <p style="margin-top: 20px; font-size: 0.9em; color: #888;">請選擇您從 OpenAI 導出並解壓縮後的整個資料夾。</p>
-        </div>
+    <div class="muted small">Sort by:
+      <select id="sortSelect">
+        <option value="newest">Newest</option>
+        <option value="oldest">Oldest</option>
+        <option value="az">A - Z</option>
+        <option value="za">Z - A</option>
+      </select>
+    </div>
 
-        <div id="chat-view" class="hidden">
-            <div class="chat-header">
-                <button id="back-to-list-btn" class="btn primary hidden">←</button>
-                <h2 id="chat-title"></h2>
-                <div class="chat-header-controls">
-                    <div id="chat-search-box" class="hidden">
-                        <input type="search" id="chat-search-input" class="control-input" placeholder="搜尋內文...">
-                        <span id="chat-search-nav">
-                            <button id="search-prev" class="btn">◀️</button>
-                            <span id="search-counter">0 / 0</span>
-                            <button id="search-next" class="btn">▶️</button>
-                        </span>
-                    </div>
-                    <button id="export-txt" class="btn primary">導出 TXT</button>
-                    <button id="export-pdf" class="btn primary">導出 PDF</button>
-                </div>
-            </div>
-            <div id="chat-messages"></div>
-            <div class="floating-buttons">
-                <button id="scroll-down" class="floating-btn btn primary">⬇️</button>
-                <button id="scroll-up" class="floating-btn btn primary">⬆️</button>
-            </div>
-        </div>
-    </main>
+    <div class="convList" id="convList" aria-live="polite"></div>
+    <div class="small muted" id="footerInfo">No file loaded</div>
+  </div>
 
-    <div id="pdf-export-container"></div>
+  <div class="main">
+    <div class="header">
+      <div style="display:flex;align-items:center;gap:12px">
+        <div id="convHeaderTitle" style="font-weight:700">Open a conversations.json to begin</div>
+        <div id="convHeaderMeta" class="muted small"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
+        <button class="btn" id="downloadConversation" style="display:none">Export .txt</button>
+        <button class="btn" id="downloadPDF" style="display:none">Export PDF</button>
+        <button class="btn" id="copyConversation" style="display:none">Copy</button>
+      </div>
+    </div>
 
-    <script>
-    (function() {
-        // --- 變數定義 ---
-        let allConversations = [];
-        let fileMap = new Map();
-        let currentConversationId = null;
-        let currentSort = 'newest';
-        let currentSearchTerm = '';
-        let chatSearchState = { term: '', results: [], currentIndex: -1 };
+    <div class="chatArea" id="chatArea">
+      <div class="muted">No conversation selected</div>
+    </div>
+  </div>
 
-        // --- DOM 元素 ---
-        const fileInput = document.getElementById('file-input');
-        const welcomeScreen = document.getElementById('welcome-screen');
-        const chatView = document.getElementById('chat-view');
-        const conversationList = document.getElementById('conversation-list');
-        const conversationCount = document.getElementById('conversation-count');
-        const chatMessages = document.getElementById('chat-messages');
-        const chatTitle = document.getElementById('chat-title');
-        const searchConversationsInput = document.getElementById('search-conversations');
-        const sortConversationsSelect = document.getElementById('sort-conversations');
-        const themeToggle = document.getElementById('theme-toggle');
-        const exportTxtBtn = document.getElementById('export-txt');
-        const exportPdfBtn = document.getElementById('export-pdf');
-        const exportZipTxtBtn = document.getElementById('export-zip-txt');
-        const exportZipPdfBtn = document.getElementById('export-zip-pdf');
-        const scrollUpBtn = document.getElementById('scroll-up');
-        const scrollDownBtn = document.getElementById('scroll-down');
-        const backToListBtn = document.getElementById('back-to-list-btn');
-        const sidebar = document.querySelector('.sidebar');
-        
-        const chatSearchBox = document.getElementById('chat-search-box');
-        const chatSearchInput = document.getElementById('chat-search-input');
-        const searchCounter = document.getElementById('search-counter');
-        const searchPrevBtn = document.getElementById('search-prev');
-        const searchNextBtn = document.getElementById('search-next');
+<script>
+/*
+  Chat Records Viewer
+  - Avoids duplicate global variables by attaching a single namespace to window.__ChatExportViewer
+  - Robust parsing for old/new OpenAI export formats
+  - Renders only user & assistant roles, skips system/tool
+  - Multiplies create_time by 1000 if appears to be in seconds
+  - Handles folder uploads (attachments: look for files named <id>-<name> or just <name>)
+  - Markdown rendering via marked + highlight.js
+  - Export single conversation .txt, export selected .zip, export PDF (html2pdf)
+  - Search across conversations with preview + keyword highlighting BEFORE opening a conversation
+*/
 
-        // --- 初始化 ---
-        document.addEventListener('DOMContentLoaded', () => {
-            initTheme();
-            addEventListeners();
+(function(){
+  if (window.__ChatExportViewerInitialized) {
+    console.warn('Chat viewer already initialized in this page. Reusing instance.');
+    return;
+  }
+  window.__ChatExportViewerInitialized = true;
+
+  // ---------- STATE ----------
+  const state = {
+    filesMap: new Map(),      // filename -> File
+    conversations: [],        // normalized array of conversations
+    filteredIndices: [],      // indices visible after search
+    currentIndex: null,
+    theme: 'light'
+  };
+
+  // ---------- HELPERS ----------
+  function safeJSONParse(txt){
+    try { return JSON.parse(txt); } catch(e) { return null; }
+  }
+
+  function isProbablyEpochSeconds(n){
+    // returns true if n looks like seconds timestamp (10 digits)
+    if (typeof n !== 'number') return false;
+    if (n > 1e11) return false; // already ms
+    return n > 0;
+  }
+
+  function toDate(ts){
+    // ts may be seconds or ms; handle both. Ensure not 1970 by checking magnitude
+    if (ts == null) return null;
+    let n = Number(ts);
+    if (Number.isNaN(n)) return null;
+    // If n looks like seconds (e.g., < 1e12), assume seconds and multiply
+    if (n > 1e12) {
+      // already ms
+    } else if (n > 1e10) {
+      // maybe ms but weird -- treat as ms
+    } else {
+      n = n * 1000;
+    }
+    return new Date(n);
+  }
+
+  function formatDate(d){
+    if (!d) return '';
+    // YYYY-MM-DD HH:MM:SS
+    const pad = (n) => (n<10 ? '0'+n : n);
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  }
+
+  function ensureArray(x){ return Array.isArray(x) ? x : (x ? [x] : []); }
+
+  // Attempt to extract a message role
+  function getMessageRole(msg){
+    if (!msg) return 'unknown';
+    if (msg.role) return msg.role;
+    if (msg.author && msg.author.role) return msg.author.role;
+    if (msg.from) return msg.from; // sometimes 'user'/'assistant'
+    if (msg.type) return msg.type;
+    return 'unknown';
+  }
+
+  // Extract textual content from many possible shapes
+  function extractMessageText(msg){
+    if (!msg) return '';
+    // Common OpenAI export shape: msg.content.parts -> array
+    if (msg.content){
+      if (typeof msg.content === 'string') return msg.content;
+      if (Array.isArray(msg.content)) return msg.content.join('\n');
+      if (Array.isArray(msg.content?.parts)) return msg.content.parts.join('\n');
+      if (typeof msg.content?.text === 'string') return msg.content.text;
+      // Some export stores as structured 'cells' or segments
+      if (Array.isArray(msg.content?.segments)) {
+        return msg.content.segments.map(s => s.text ?? '').join('\n');
+      }
+    }
+    // Older formats: msg.message or msg.text or msg.value
+    if (typeof msg.message === 'string') return msg.message;
+    if (typeof msg.text === 'string') return msg.text;
+    if (typeof msg.value === 'string') return msg.value;
+    if (Array.isArray(msg.parts)) return msg.parts.join('\n');
+    // fallback: try to stringify a 'content' object
+    if (msg.content && typeof msg.content === 'object') {
+      // try to pick the first stringy property
+      for (const k of ['text','body','value']) {
+        if (typeof msg.content[k] === 'string') return msg.content[k];
+      }
+    }
+    return '';
+  }
+
+  // detect attachments metadata inside message
+  function getMessageAttachments(msg){
+    if (!msg) return [];
+    const att = [];
+    // Typical property names
+    for (const key of ['attachments','files','file','media','images']) {
+      const v = msg[key];
+      if (Array.isArray(v)) {
+        v.forEach(a=>{
+          if (a && (a.id || a.name || a.filename || a.url)) {
+            att.push(a);
+          }
         });
+      } else if (v && typeof v === 'object' && (v.id || v.name)) {
+        att.push(v);
+      }
+    }
+    // sometimes the content contains attachments info
+    if (msg.content && Array.isArray(msg.content?.attachments)) {
+      msg.content.attachments.forEach(a=>att.push(a));
+    }
+    // normalize: ensure id and name fields exist
+    return att.map(a=>{
+      return {
+        id: a.id ?? a.file_id ?? a.filename ?? null,
+        name: a.name ?? a.filename ?? a.file_name ?? (a.url ? a.url.split('/').pop() : null),
+        url: a.url ?? a.href ?? null,
+        raw: a
+      };
+    });
+  }
 
-        function addEventListeners() {
-            fileInput.addEventListener('change', handleFolderUpload);
-            searchConversationsInput.addEventListener('input', (e) => {
-                currentSearchTerm = e.target.value.toLowerCase();
-                renderConversationList();
+  // Find matching File object in uploaded folder
+  function findAttachmentFile(attachment){
+    if (!attachment) return null;
+    const candidates = [];
+    const name = attachment.name;
+    const id = attachment.id;
+    if (!state.filesMap || state.filesMap.size===0) return null;
+    // Try <id>-<name>
+    if (id && name) {
+      const combined = `${id}-${name}`;
+      if (state.filesMap.has(combined)) return state.filesMap.get(combined);
+    }
+    // Try just name
+    if (name && state.filesMap.has(name)) return state.filesMap.get(name);
+    // Try name in lower/upper forms
+    for (let key of state.filesMap.keys()){
+      if (key.endsWith(`-${name}`) || key === name) return state.filesMap.get(key);
+      if (name && key.toLowerCase().endsWith(name.toLowerCase())) return state.filesMap.get(key);
+    }
+    return null;
+  }
+
+  // Token counting: use gpt-3-encoder if available, else fallback heuristic
+  function countTokens(text){
+    if (!text) return 0;
+    try {
+      if (typeof encode === 'function') {
+        return encode(text).length;
+      }
+    } catch(e){ /* ignore */ }
+    // fallback: heuristic: tokens ~ chars/4
+    const chars = text.length;
+    return Math.max(1, Math.round(chars/4));
+  }
+
+  function countWords(text){
+    if (!text) return 0;
+    return (text.trim().match(/\S+/g) || []).length;
+  }
+
+  // ---------- PARSING CONVERSATIONS ----------
+  function normalizeConversationsFromParsed(parsed){
+    // parsed might be:
+    // - an array of conversation objects (old)
+    // - an object with items: [] (new)
+    // - an object with conversations property
+    let items = [];
+    if (!parsed) return [];
+    if (Array.isArray(parsed)) items = parsed;
+    else if (Array.isArray(parsed.items)) items = parsed.items;
+    else if (Array.isArray(parsed.conversations)) items = parsed.conversations;
+    else {
+      // attempt to find first array of objects that look like conversations
+      for (const k of Object.keys(parsed)) {
+        if (Array.isArray(parsed[k]) && parsed[k].length>0 && typeof parsed[k][0] === 'object') {
+          items = parsed[k];
+          break;
+        }
+      }
+    }
+
+    // Now normalize each item into an object with id, title, messages[] etc.
+    const out = items.map((conv, idx) => {
+      // Common fields: title, id, create_time or created_at or updated_at
+      const id = conv.id ?? conv.conversation_id ?? `conv-${idx}`;
+      const title = conv.title ?? conv.name ?? (conv.metadata?.title) ?? `Conversation ${idx+1}`;
+      // messages might be in conv.messages or conv.items or conv.mapping
+      let rawMsgs = [];
+      if (Array.isArray(conv.messages)) rawMsgs = conv.messages;
+      else if (Array.isArray(conv.items)) rawMsgs = conv.items;
+      else if (Array.isArray(conv.messages_list)) rawMsgs = conv.messages_list;
+      else if (Array.isArray(conv.dialogue)) rawMsgs = conv.dialogue;
+      else {
+        // try to inspect keys to locate message arrays
+        for (const k of Object.keys(conv)) {
+          if (Array.isArray(conv[k]) && conv[k].length>0) {
+            // Heuristic: message objects should have a role or author or create_time
+            const sample = conv[k][0];
+            if (sample && (sample.role || sample.author || sample.create_time || sample.content || sample.text || sample.message)) {
+              rawMsgs = conv[k];
+              break;
+            }
+          }
+        }
+      }
+      // Normalize each message: preserve original object, compute role, text, timestamp, attachments, versions
+      const messages = (rawMsgs || []).map(m => {
+        const role = (getMessageRole(m) || '').toString();
+        const text = extractMessageText(m) || '';
+        const timestamp = (() => {
+          // prefer m.create_time or m.created_at or m.timestamp
+          if (m.create_time) return m.create_time;
+          if (m.created_at) return m.created_at;
+          if (m.timestamp) return m.timestamp;
+          if (m.date) return m.date;
+          return null;
+        })();
+        const attachments = getMessageAttachments(m);
+        // detect edit history / versions - some exports store edits in m.edits or m.versions
+        const versions = [];
+        if (Array.isArray(m.versions)) {
+          m.versions.forEach(v=>{
+            versions.push({text: extractMessageText(v), ts: v.create_time || v.timestamp || null, raw:v});
+          });
+        }
+        if (Array.isArray(m.edits)) {
+          m.edits.forEach(v=>{
+            versions.push({text: extractMessageText(v), ts: v.create_time || v.timestamp || null, raw:v});
+          });
+        }
+        // If the current message has a `content` that is an array of parts representing versions, try to capture them
+        if (Array.isArray(m.content?.parts) && m.content.parts.length>1) {
+          // keep as single message; but versions might be absent. We won't invent versions here.
+        }
+        return {
+          raw: m,
+          role,
+          text,
+          ts: timestamp,
+          date: toDate(timestamp),
+          attachments,
+          versions,
+          modified: !!(m.edited || m.metadata?.modified || m.modified)
+        };
+      });
+
+      // Compute summary metadata
+      const allText = messages.map(mm => mm.text).filter(Boolean).join('\n');
+      const userCount = messages.filter(mm => mm.role === 'user').length;
+      const assistantCount = messages.filter(mm => mm.role === 'assistant').length;
+      const wordCount = countWords(allText);
+      const tokenCount = countTokens(allText);
+
+      // find 'last updated' timestamp from messages or conv.update_time or conv.create_time
+      let lastDate = null;
+      const candidateDates = [];
+      if (conv.update_time) candidateDates.push(toDate(conv.update_time));
+      if (conv.updated_at) candidateDates.push(toDate(conv.updated_at));
+      if (conv.create_time) candidateDates.push(toDate(conv.create_time));
+      if (conv.created_at) candidateDates.push(toDate(conv.created_at));
+      messages.forEach(m=>{ if (m.date) candidateDates.push(m.date); });
+      candidateDates.forEach(d=>{ if (d && (!lastDate || d>lastDate)) lastDate = d; });
+
+      return {
+        original: conv,
+        id, title,
+        messages,
+        stats: {userCount, assistantCount, wordCount, tokenCount},
+        lastDate: lastDate,
+        previewText: allText.slice(0,400)
+      };
+    });
+
+    return out;
+  }
+
+  // ---------- UI RENDER ----------
+  const el = {
+    fileJson: document.getElementById('fileJson'),
+    dirInput: document.getElementById('dirInput'),
+    convList: document.getElementById('convList'),
+    chatArea: document.getElementById('chatArea'),
+    footerInfo: document.getElementById('footerInfo'),
+    convHeaderTitle: document.getElementById('convHeaderTitle'),
+    convHeaderMeta: document.getElementById('convHeaderMeta'),
+    globalSearch: document.getElementById('globalSearch'),
+    sortSelect: document.getElementById('sortSelect'),
+    downloadConversation: document.getElementById('downloadConversation'),
+    downloadPDF: document.getElementById('downloadPDF'),
+    copyConversation: document.getElementById('copyConversation'),
+    exportAllTxt: document.getElementById('exportAllTxt'),
+    exportAllZip: document.getElementById('exportAllZip'),
+    toggleTheme: document.getElementById('toggleTheme')
+  };
+
+  function clearState(){
+    state.filesMap.clear();
+    state.conversations = [];
+    state.filteredIndices = [];
+    state.currentIndex = null;
+    el.convList.innerHTML = '';
+    el.chatArea.innerHTML = '<div class="muted">No conversation selected</div>';
+    el.footerInfo.textContent = 'No file loaded';
+    el.convHeaderTitle.textContent = 'Open a conversations.json to begin';
+    el.convHeaderMeta.textContent = '';
+    hideConversationActions();
+  }
+
+  function hideConversationActions(){
+    el.downloadConversation.style.display = 'none';
+    el.downloadPDF.style.display = 'none';
+    el.copyConversation.style.display = 'none';
+  }
+  function showConversationActions(){
+    el.downloadConversation.style.display = '';
+    el.downloadPDF.style.display = '';
+    el.copyConversation.style.display = '';
+  }
+
+  // Render conversation list based on state.filteredIndices (or all)
+  function renderConversationList(){
+    const list = el.convList;
+    list.innerHTML = '';
+    const indices = state.filteredIndices.length ? state.filteredIndices : state.conversations.map((_,i)=>i);
+    if (!indices.length) {
+      list.innerHTML = '<div class="muted small">No conversations found</div>';
+      return;
+    }
+    indices.forEach(i=>{
+      const conv = state.conversations[i];
+      const div = document.createElement('div');
+      div.className = 'convItem';
+      div.dataset.index = i;
+      const title = document.createElement('div');
+      title.className = 'convTitle';
+      title.textContent = conv.title || 'Untitled conversation';
+      const meta = document.createElement('div');
+      meta.className = 'convMeta';
+      const dateText = conv.lastDate ? formatDate(conv.lastDate) : '';
+      meta.innerHTML = `${dateText} <span style="margin-left:6px">${conv.stats.userCount} user / ${conv.stats.assistantCount} AI • ${conv.stats.wordCount} words • ${conv.stats.tokenCount} tokens</span>`;
+      // preview: show snippet with highlighted search terms if any
+      const preview = document.createElement('div');
+      preview.className = 'small';
+      preview.style.whiteSpace = 'nowrap';
+      preview.style.overflow = 'hidden';
+      preview.style.textOverflow = 'ellipsis';
+      const search = el.globalSearch.value.trim();
+      if (search) {
+        // highlight occurrences in previewText
+        const re = new RegExp(escapeRegExp(search), 'ig');
+        const txt = conv.previewText.replace(re, (m) => `<span class="highlight">${m}</span>`);
+        preview.innerHTML = txt || '';
+      } else {
+        preview.textContent = conv.previewText || '';
+      }
+
+      div.appendChild(title);
+      div.appendChild(meta);
+      div.appendChild(preview);
+      div.addEventListener('click', ()=>openConversation(i));
+      list.appendChild(div);
+    });
+  }
+
+  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
+
+  function openConversation(index){
+    state.currentIndex = index;
+    const conv = state.conversations[index];
+    // Update header
+    el.convHeaderTitle.textContent = conv.title || 'Untitled';
+    el.convHeaderMeta.textContent = conv.lastDate ? formatDate(conv.lastDate) : '';
+    el.footerInfo.textContent = `Parsed ${state.conversations.length} conversations • Showing "${conv.title}"`;
+    showConversationActions();
+    // Render messages into chatArea
+    const area = el.chatArea;
+    area.innerHTML = '';
+    // compute counts and tokens on the fly
+    let aiReplies = 0, userMsgs = 0, totalWords = 0, totalTokens = 0;
+    conv.messages.forEach((m, idx) => {
+      // Only render user & assistant
+      const role = (m.role || '').toLowerCase();
+      if (role !== 'user' && role !== 'assistant') return;
+      const text = (m.text || '').trim();
+      if (!text) return; // skip empty messages per requirements
+      const wrapper = document.createElement('div');
+      wrapper.className = 'message ' + (role === 'user' ? 'msgUser' : 'msgAssistant');
+      // create meta line
+      const meta = document.createElement('div');
+      meta.className = 'msgMeta';
+      meta.textContent = `${role} • ${m.date ? formatDate(m.date) : (m.ts ? m.ts : '')}`;
+      wrapper.appendChild(meta);
+
+      // attachments (render before text)
+      (m.attachments || []).forEach(att=>{
+        const file = findAttachmentFile(att);
+        if (file) {
+          const preview = renderFilePreview(file);
+          wrapper.appendChild(preview);
+        } else if (att.url) {
+          // show link or embedded if image
+          const a = document.createElement('a');
+          a.href = att.url;
+          a.target = '_blank';
+          a.textContent = `Attachment: ${att.name || att.id || att.url}`;
+          wrapper.appendChild(a);
+        } else {
+          const note = document.createElement('div');
+          note.className = 'small muted';
+          note.textContent = `Attachment metadata: ${att.name || att.id || 'unknown'}`;
+          wrapper.appendChild(note);
+        }
+      });
+
+      // Render text as Markdown into a container
+      const mdContainer = document.createElement('div');
+      mdContainer.className = 'mdContainer';
+      // Use marked to convert to HTML
+      // sanitize: we will allow basic HTML but avoid scripts by removing script tags after rendering
+      const rendered = marked.parse(text || '');
+      mdContainer.innerHTML = rendered;
+      // remove script tags if any
+      [...mdContainer.querySelectorAll('script')].forEach(s=>s.remove());
+      // Syntax highlight code blocks
+      mdContainer.querySelectorAll('pre code').forEach(block => {
+        try { hljs.highlightElement(block); } catch(e) {}
+        // attach copy button for this code block
+        const pre = block.closest('pre');
+        if (pre) {
+          const cp = document.createElement('button');
+          cp.className = 'copyBtn';
+          cp.textContent = 'Copy code';
+          cp.addEventListener('click', ()=> {
+            navigator.clipboard.writeText(block.textContent).then(()=> {
+              cp.textContent = 'Copied';
+              setTimeout(()=>cp.textContent='Copy code', 1200);
             });
-            sortConversationsSelect.addEventListener('change', (e) => {
-                currentSort = e.target.value;
-                renderConversationList();
-            });
-            themeToggle.addEventListener('click', toggleTheme);
-            exportTxtBtn.addEventListener('click', () => exportConversation('txt'));
-            exportPdfBtn.addEventListener('click', () => exportConversation('pdf'));
-            exportZipTxtBtn.addEventListener('click', () => exportSelectedConversations('txt'));
-            exportZipPdfBtn.addEventListener('click', () => exportSelectedConversations('pdf'));
-            scrollUpBtn.addEventListener('click', () => chatMessages.scrollTo({ top: 0, behavior: 'smooth' }));
-            scrollDownBtn.addEventListener('click', () => chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }));
-            
-            backToListBtn.addEventListener('click', () => {
-                 if (window.innerWidth <= 768) sidebar.classList.remove('visible');
-            });
-
-            chatSearchInput.addEventListener('input', handleChatSearch);
-            searchPrevBtn.addEventListener('click', () => navigateSearchResults(-1));
-            searchNextBtn.addEventListener('click', () => navigateSearchResults(1));
-            
-            // 使用事件代理處理複製按鈕點擊
-            chatMessages.addEventListener('click', handleMessageClicks);
+          });
+          pre.style.position = 'relative';
+          cp.style.position = 'absolute';
+          cp.style.top = '6px';
+          cp.style.right = '6px';
+          pre.appendChild(cp);
         }
+      });
 
-        // --- 核心功能 ---
-        async function handleFolderUpload(event) {
-            const files = event.target.files;
-            if (files.length === 0) return;
+      wrapper.appendChild(mdContainer);
 
-            const jsonFile = Array.from(files).find(file => file.name === 'conversations.json');
-            if (!jsonFile) {
-                alert('錯誤：在您選擇的資料夾中找不到 "conversations.json" 檔案。');
-                return;
-            }
-            
-            document.getElementById('upload-label').textContent = '處理中，請稍候...';
+      // If versions/edit history exist, render them collapsed
+      if (m.versions && m.versions.length) {
+        const vWrap = document.createElement('div');
+        vWrap.className = 'small';
+        m.versions.forEach((v, vidx)=>{
+          const vb = document.createElement('div');
+          vb.innerHTML = `<span class="versionBadge">version ${vidx+1}</span> ${v.ts ? formatDate(toDate(v.ts)) : ''}`;
+          const vText = document.createElement('pre');
+          vText.style.background = '#fff7f7';
+          vText.style.padding = '8px';
+          vText.style.borderRadius = '6px';
+          vText.style.whiteSpace = 'pre-wrap';
+          vText.style.wordWrap = 'break-word';
+          vText.textContent = v.text || '';
+          vWrap.appendChild(vb);
+          vWrap.appendChild(vText);
+        });
+        wrapper.appendChild(vWrap);
+      }
+      // action buttons for each message
+      const actions = document.createElement('div');
+      actions.className = 'msgActions';
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'copyBtn';
+      copyBtn.textContent = 'Copy message';
+      copyBtn.addEventListener('click', ()=>{
+        navigator.clipboard.writeText(m.text || '').then(()=> {
+          copyBtn.textContent = 'Copied';
+          setTimeout(()=>copyBtn.textContent = 'Copy message', 1000);
+        });
+      });
+      actions.appendChild(copyBtn);
 
-            fileMap.clear();
-            for (const file of files) {
-                const relativePath = file.webkitRelativePath.split('/').slice(1).join('/');
-                if (relativePath) fileMap.set(relativePath, file);
-            }
+      const downloadRawBtn = document.createElement('button');
+      downloadRawBtn.className = 'copyBtn';
+      downloadRawBtn.textContent = 'Download raw JSON';
+      downloadRawBtn.addEventListener('click', ()=>{
+        const blob = new Blob([JSON.stringify(m.raw, null, 2)], {type:'application/json'});
+        saveAs(blob, `${conv.title || conv.id || 'conversation'}-msg-${idx}.json`);
+      });
+      actions.appendChild(downloadRawBtn);
 
-            try {
-                const jsonText = await jsonFile.text();
-                parseAndLoadConversations(jsonText);
-                welcomeScreen.classList.add('hidden');
-                chatView.classList.remove('hidden');
-                if (window.innerWidth <= 768) {
-                    sidebar.classList.add('visible');
-                }
-            } catch (error) {
-                console.error('讀取或解析 JSON 失敗:', error);
-                alert('讀取或解析 "conversations.json" 失敗，請檢查檔案格式是否正確。');
-                document.getElementById('upload-label').textContent = '上傳失敗，請重試';
-            }
-        }
+      wrapper.appendChild(actions);
+      area.appendChild(wrapper);
 
-        function parseAndLoadConversations(jsonText) {
-            let conversationsData = [];
-            try {
-                const parsed = JSON.parse(jsonText);
-                if (Array.isArray(parsed)) {
-                    conversationsData = parsed; // 舊格式
-                } else if (parsed && Array.isArray(parsed.items)) {
-                    conversationsData = parsed.items; // 新格式
-                } else {
-                    throw new Error("無法識別的 conversations.json 格式。");
-                }
-            } catch (e) {
-                console.error("JSON 解析錯誤:", e);
-                alert("JSON 檔案格式錯誤，無法解析。");
-                return;
-            }
+      // stats
+      if (role === 'assistant') aiReplies++;
+      if (role === 'user') userMsgs++;
+      totalWords += countWords(m.text);
+      totalTokens += countTokens(m.text);
+    });
 
-            allConversations = conversationsData.map(conv => ({
-                id: conv.id,
-                title: conv.title || '無標題對話',
-                create_time: conv.create_time,
-                mapping: conv.mapping,
-                ...calculateStats(conv)
-            })).filter(c => c.id && c.title && c.mapping); // 過濾掉無效對話
-            
-            renderConversationList();
-        }
+    // footer stats in header
+    el.convHeaderMeta.textContent = `${conv.stats.userCount} user / ${conv.stats.assistantCount} AI • ${conv.stats.wordCount} words • ${conv.stats.tokenCount} tokens (est)`;
+    // Ensure scroll to top
+    area.scrollTop = 0;
+  }
 
-        function calculateStats(conversation) {
-            let wordCount = 0, userMessages = 0, assistantMessages = 0;
-            if (!conversation.mapping) return { wordCount, userMessages, assistantMessages };
-            Object.values(conversation.mapping).forEach(node => {
-                const message = node.message;
-                if (message?.author?.role && message?.content?.parts?.join('')) {
-                    wordCount += message.content.parts.join('').split(/\s+/).length;
-                    if (message.author.role === 'user') userMessages++;
-                    if (message.author.role === 'assistant') assistantMessages++;
-                }
-            });
-            return { wordCount, userMessages, assistantMessages };
-        }
+  // Render file preview for known file types (images, txt, pdf)
+  function renderFilePreview(file){
+    const wrap = document.createElement('div');
+    wrap.className = 'filePreview';
+    const url = URL.createObjectURL(file);
+    const nameEl = document.createElement('div');
+    nameEl.textContent = file.name + ` (${Math.round(file.size/1024)} KB)`;
+    nameEl.className = 'small muted';
+    wrap.appendChild(nameEl);
+    if (file.type.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = url;
+      img.style.maxWidth = '100%';
+      img.style.borderRadius = '6px';
+      wrap.appendChild(img);
+    } else if (file.name.endsWith('.txt') || file.type.startsWith('text/')) {
+      const p = document.createElement('pre');
+      p.style.maxHeight = '160px';
+      p.style.overflow = 'auto';
+      p.style.whiteSpace = 'pre-wrap';
+      // load text asynchronously
+      file.text().then(t=>p.textContent = t);
+      wrap.appendChild(p);
+    } else if (file.name.endsWith('.pdf')) {
+      const a = document.createElement('a');
+      a.href = url; a.target='_blank'; a.textContent='Open PDF';
+      wrap.appendChild(a);
+    } else {
+      const a = document.createElement('a');
+      a.href = url; a.download = file.name; a.textContent = 'Download file';
+      wrap.appendChild(a);
+    }
+    return wrap;
+  }
 
-        // --- 渲染功能 ---
-        function renderConversationList() {
-            const filtered = allConversations.filter(conv => {
-                if (!currentSearchTerm) return true;
-                const term = currentSearchTerm.toLowerCase();
-                const titleMatch = conv.title.toLowerCase().includes(term);
-                if (titleMatch) return true;
-                return Object.values(conv.mapping).some(node => 
-                    node.message?.content?.parts?.join('').toLowerCase().includes(term)
-                );
-            });
+  // ---------- UPLOAD HANDLERS ----------
+  el.fileJson.addEventListener('change', async (ev)=>{
+    const f = ev.target.files[0];
+    if (!f) return;
+    clearState();
+    state.filesMap.set(f.name, f);
+    el.footerInfo.textContent = `Loaded file: ${f.name}`;
+    try {
+      const txt = await f.text();
+      const parsed = safeJSONParse(txt);
+      if (!parsed) { el.footerInfo.textContent = 'Failed to parse JSON'; return; }
+      const convs = normalizeConversationsFromParsed(parsed);
+      state.conversations = convs;
+      state.filteredIndices = [];
+      el.footerInfo.textContent = `Parsed ${convs.length} conversations from ${f.name}`;
+      renderConversationList();
+    } catch(e){
+      console.error(e);
+      el.footerInfo.textContent = 'Error reading file';
+    }
+    // clear input so re-uploading same file triggers change
+    ev.target.value = '';
+  });
 
-            const sorted = filtered.sort((a, b) => {
-                switch (currentSort) {
-                    case 'oldest': return a.create_time - b.create_time;
-                    case 'az': return a.title.localeCompare(b.title);
-                    case 'za': return b.title.localeCompare(a.title);
-                    default: return b.create_time - a.create_time;
-                }
-            });
+  el.dirInput.addEventListener('change', async (ev)=>{
+    const files = Array.from(ev.target.files || []);
+    if (!files.length) return;
+    clearState();
+    // populate file map
+    files.forEach(f => { state.filesMap.set(f.webkitRelativePath || f.name, f); state.filesMap.set(f.name, f); });
+    // find conversations.json (case-insensitive)
+    const convFile = files.find(f => f.name.toLowerCase() === 'conversations.json');
+    if (!convFile) {
+      el.footerInfo.textContent = 'No conversations.json found in selected folder.';
+      return;
+    }
+    el.footerInfo.textContent = `Found ${files.length} files. Loading ${convFile.name}`;
+    try {
+      const txt = await convFile.text();
+      const parsed = safeJSONParse(txt);
+      if (!parsed) { el.footerInfo.textContent = 'Failed to parse conversations.json'; return; }
+      const convs = normalizeConversationsFromParsed(parsed);
+      state.conversations = convs;
+      state.filteredIndices = [];
+      el.footerInfo.textContent = `Parsed ${convs.length} conversations from folder upload`;
+      renderConversationList();
+    } catch(e){
+      console.error(e);
+      el.footerInfo.textContent = 'Error reading conversations.json';
+    }
+    ev.target.value = '';
+  });
 
-            conversationList.innerHTML = '';
-            sorted.forEach(conv => {
-                const li = document.createElement('li');
-                li.className = 'conversation-item';
-                li.dataset.id = conv.id;
-                if (conv.id === currentConversationId) li.classList.add('active');
+  // ---------- SEARCH & SORT ----------
+  el.globalSearch.addEventListener('input', ()=>{
+    applySearchAndFilter();
+  });
 
-                let previewHTML = '';
-                if (currentSearchTerm) {
-                    const previewText = findFirstMatchInConversation(conv, currentSearchTerm);
-                    if (previewText) previewHTML = `<div class="search-preview">${highlightText(previewText, currentSearchTerm)}</div>`;
-                }
+  el.sortSelect.addEventListener('change', ()=>{
+    applySearchAndFilter();
+  });
 
-                li.innerHTML = `
-                    <input type="checkbox" class="conversation-checkbox" data-id="${conv.id}">
-                    <div class="conversation-item-content">
-                        <strong class="conversation-title">${conv.title}</strong>
-                        <div class="conversation-timestamp">${formatTimestamp(conv.create_time)}</div>
-                        <div class="conversation-stats">用戶: ${conv.userMessages} | AI: ${conv.assistantMessages} | 字數: ${conv.wordCount}</div>
-                        ${previewHTML}
-                    </div>`;
-                li.addEventListener('click', (e) => {
-                    if (e.target.type === 'checkbox') return;
-                    currentConversationId = conv.id;
-                    renderConversation(conv.id);
-                    if (window.innerWidth <= 768) sidebar.classList.remove('visible');
-                });
-                conversationList.appendChild(li);
-            });
-            conversationCount.textContent = `找到 ${sorted.length} 個會話`;
-        }
+  function applySearchAndFilter(){
+    const q = el.globalSearch.value.trim().toLowerCase();
+    // sort conversations in place by selection
+    const opt = el.sortSelect.value;
+    const indices = state.conversations.map((c,i)=>i);
+    indices.sort((a,b)=>{
+      const ca = state.conversations[a], cb = state.conversations[b];
+      if (opt === 'newest') return (cb.lastDate||0) - (ca.lastDate||0);
+      if (opt === 'oldest') return (ca.lastDate||0) - (cb.lastDate||0);
+      if (opt === 'az') return (ca.title||'').localeCompare(cb.title||'');
+      if (opt === 'za') return (cb.title||'').localeCompare(ca.title||'');
+      return 0;
+    });
+    if (!q) {
+      state.filteredIndices = indices;
+      renderConversationList();
+      return;
+    }
+    const matched = [];
+    const re = new RegExp(escapeRegExp(q), 'i');
+    indices.forEach(i=>{
+      const conv = state.conversations[i];
+      // search title
+      if ((conv.title||'').toLowerCase().includes(q)) { matched.push(i); return; }
+      // search messages' text
+      const foundAt = conv.messages.findIndex(m=>{
+        if (!m.text) return false;
+        if (re.test(m.text)) return true;
+        return false;
+      });
+      if (foundAt >= 0) matched.push(i);
+    });
+    state.filteredIndices = matched;
+    renderConversationList();
+  }
 
-        function findFirstMatchInConversation(conv, term) {
-            for (const node of Object.values(conv.mapping)) {
-                const text = node.message?.content?.parts?.join('');
-                if (text && text.toLowerCase().includes(term.toLowerCase())) {
-                    const index = text.toLowerCase().indexOf(term.toLowerCase());
-                    const start = Math.max(0, index - 30);
-                    const end = Math.min(text.length, index + term.length + 30);
-                    return `...${text.substring(start, end)}...`;
-                }
-            }
-            return '';
-        }
+  // ---------- EXPORTS ----------
+  el.exportAllTxt.addEventListener('click', async ()=>{
+    if (!state.conversations.length) return alert('No conversations loaded');
+    // generate individual txts and zip them
+    const zip = new JSZip();
+    state.conversations.forEach((conv, idx)=>{
+      const content = conv.messages.filter(m=>['user','assistant'].includes((m.role||'').toLowerCase()))
+        .filter(m=>m.text && m.text.trim())
+        .map(m=>`${m.role.toUpperCase()} • ${m.date ? formatDate(m.date) : ''}\n${m.text}\n\n`).join('\n');
+      zip.file(`${sanitizeFilename(conv.title||conv.id||'conversation')}.txt`, content);
+    });
+    const blob = await zip.generateAsync({type:'blob'});
+    saveAs(blob, 'all-conversations.zip');
+  });
 
-        function highlightText(text, term) {
-            if (!term) return text;
-            const regex = new RegExp(`(${term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
-            return text.replace(regex, '<mark>$1</mark>');
-        }
+  el.exportAllZip.addEventListener('click', async ()=>{
+    // allow selecting which to export — for now export all
+    el.exportAllTxt.click();
+  });
 
-        function renderConversation(id) {
-            const conversation = allConversations.find(c => c.id === id);
-            if (!conversation) return;
+  el.downloadConversation.addEventListener('click', ()=>{
+    if (state.currentIndex == null) return;
+    const conv = state.conversations[state.currentIndex];
+    const text = conv.messages.filter(m=>['user','assistant'].includes((m.role||'').toLowerCase()))
+      .filter(m=>m.text && m.text.trim())
+      .map(m=>`${m.role.toUpperCase()} • ${m.date ? formatDate(m.date) : ''}\n${m.text}\n`).join('\n\n');
+    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
+    saveAs(blob, `${sanitizeFilename(conv.title||conv.id)}.txt`);
+  });
 
-            currentConversationId = id;
-            chatTitle.textContent = conversation.title;
-            chatMessages.innerHTML = '';
-            chatSearchBox.classList.remove('hidden');
-            chatSearchInput.value = '';
-            resetChatSearch();
+  el.copyConversation.addEventListener('click', ()=>{
+    if (state.currentIndex == null) return;
+    const conv = state.conversations[state.currentIndex];
+    const text = conv.messages.filter(m=>['user','assistant'].includes((m.role||'').toLowerCase()))
+      .filter(m=>m.text && m.text.trim())
+      .map(m=>`${m.role.toUpperCase()} • ${m.date ? formatDate(m.date) : ''}\n${m.text}\n`).join('\n\n');
+    navigator.clipboard.writeText(text).then(()=> {
+      el.copyConversation.textContent = 'Copied';
+      setTimeout(()=>el.copyConversation.textContent = 'Copy', 1000);
+    });
+  });
 
-            const rootNode = Object.values(conversation.mapping).find(node => !node.parent);
-            let path = [];
-            let currentNode = rootNode;
-            while (currentNode) {
-                if (currentNode.message) path.push(currentNode);
-                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
-                currentNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
-            }
-            
-            path.forEach(node => renderMessage(node));
-            document.querySelectorAll('.conversation-item').forEach(item => item.classList.toggle('active', item.dataset.id === id));
-            
-            setTimeout(() => hljs.highlightAll(), 0);
-        }
+  el.downloadPDF.addEventListener('click', ()=>{
+    if (state.currentIndex == null) return;
+    // convert the visible conversation (.chatArea contents) to PDF
+    const node = el.chatArea;
+    const opt = {
+      margin:       10,
+      filename:     `${sanitizeFilename(state.conversations[state.currentIndex].title||'conversation')}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, useCORS: true },
+      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
+      pagebreak:    { mode: ['css', 'legacy'] }
+    };
+    html2pdf().set(opt).from(node).save();
+  });
 
-        async function renderMessage(node) {
-            const msg = node.message;
-            if (!msg?.author || !['user', 'assistant'].includes(msg.author.role) || !msg.content?.parts?.join('')) return;
+  function sanitizeFilename(name){
+    return (name || 'conversation').replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').slice(0,200);
+  }
 
-            const role = msg.author.role;
-            const messageDiv = document.createElement('div');
-            messageDiv.className = `message ${role}`;
-            messageDiv.dataset.id = node.id;
+  // ---------- THEME TOGGLE ----------
+  el.toggleTheme.addEventListener('click', ()=>{
+    if (state.theme === 'light') {
+      document.documentElement.style.setProperty('--bg', '#0b0b0d');
+      document.documentElement.style.setProperty('--panel', '#071018');
+      document.documentElement.style.setProperty('--muted', '#9aa5b1');
+      document.documentElement.style.setProperty('--text', '#e8eef2');
+      document.documentElement.style.setProperty('--bubble-user', '#0e1114');
+      document.documentElement.style.setProperty('--bubble-assistant', '#071220');
+      document.documentElement.style.setProperty('--code-bg', '#000');
+      document.documentElement.style.setProperty('--scrollbar', '#ffb3b3');
+      state.theme = 'dark';
+      document.body.style.color = '#e8eef2';
+    } else {
+      document.documentElement.style.setProperty('--bg', '#fff9fb');
+      document.documentElement.style.setProperty('--panel', '#fff');
+      document.documentElement.style.setProperty('--muted', '#8b7d86');
+      document.documentElement.style.setProperty('--text', '#222');
+      document.documentElement.style.setProperty('--bubble-user', '#fff');
+      document.documentElement.style.setProperty('--bubble-assistant', '#fffaf0');
+      document.documentElement.style.setProperty('--code-bg', '#0b0b0b');
+      document.documentElement.style.setProperty('--scrollbar', '#ffb3b3');
+      state.theme = 'light';
+      document.body.style.color = '#222';
+    }
+  });
 
-            const avatar = role === 'user' ? 'U' : 'A';
-            const timestamp = formatTimestamp(msg.create_time);
-            
-            let attachmentsHTML = '';
-            if (role === 'user' && msg.metadata?.attachments) {
-                for (const att of msg.metadata.attachments) {
-                    const file = fileMap.get(`files/${att.id}-${att.name}`);
-                    if (file?.type.startsWith('image/')) {
-                        attachmentsHTML += `<img src="${URL.createObjectURL(file)}" alt="${att.name}" class="attachment-image">`;
-                    }
-                }
-            }
+  // ---------- Utility to open conversation by default if only one ----------
+  function openFirstIfAny(){
+    if (state.conversations.length === 1) openConversation(0);
+  }
 
-            const rawContent = msg.content.parts.join('');
-            const renderedContent = marked.parse(rawContent, { gfm: true, breaks: true, renderer: getCustomRenderer() });
+  // ---------- Initialize small UI state ----------
+  clearState();
 
-            messageDiv.innerHTML = `
-                <div class="avatar ${role}">${avatar}</div>
-                <div class="message-content">
-                    <button class="copy-message-btn" title="複製訊息內容">📋</button>
-                    <div class="message-body">
-                        ${attachmentsHTML}
-                        ${renderedContent}
-                    </div>
-                    <div class="message-meta">${timestamp}</div>
-                </div>`;
-            chatMessages.appendChild(messageDiv);
-        }
-        
-        function getCustomRenderer() {
-            const renderer = new marked.Renderer();
-            renderer.code = (code, language) => {
-                const validLang = hljs.getLanguage(language) ? language : 'plaintext';
-                const highlightedCode = hljs.highlight(code, { language: validLang, ignoreIllegals: true }).value;
-                return `
-                <div class="code-container">
-                    <div class="code-header">
-                        <span>${validLang}</span>
-                        <button class="copy-code-btn">Copy</button>
-                    </div>
-                    <pre><code class="hljs language-${validLang}">${highlightedCode}</code></pre>
-                </div>`;
-            };
-            return renderer;
-        }
+  // Expose some helpers to window for debugging if needed, but avoid polluting with big vars
+  window.ChatRecordsViewer = {
+    state,
+    openConversation,
+    normalizeConversationsFromParsed
+  };
 
-        function handleMessageClicks(e) {
-            const copyMsgBtn = e.target.closest('.copy-message-btn');
-            const copyCodeBtn = e.target.closest('.copy-code-btn');
+  // Small UX: allow dropping a conversations.json onto the page
+  document.addEventListener('dragover', (e)=>{ e.preventDefault(); });
+  document.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    const f = e.dataTransfer.files && e.dataTransfer.files[0];
+    if (!f) return;
+    if (f.name.toLowerCase().endsWith('.json')) {
+      el.fileJson.files = e.dataTransfer.files;
+      const evt = new Event('change');
+      el.fileJson.dispatchEvent(evt);
+    }
+  });
 
-            if (copyMsgBtn) {
-                const messageBody = copyMsgBtn.closest('.message-content').querySelector('.message-body');
-                navigator.clipboard.writeText(messageBody.innerText).then(() => {
-                    copyMsgBtn.textContent = '✅';
-                    setTimeout(() => copyMsgBtn.textContent = '📋', 2000);
-                });
-            }
+  // Helpful note
+  console.info('Chat Records Viewer ready. Upload a conversations.json (single file) or the exported folder.');
 
-            if (copyCodeBtn) {
-                const code = copyCodeBtn.closest('.code-container').querySelector('code').innerText;
-                navigator.clipboard.writeText(code).then(() => {
-                    copyCodeBtn.textContent = 'Copied!';
-                    setTimeout(() => copyCodeBtn.textContent = 'Copy', 2000);
-                });
-            }
-        }
-
-        // --- 導出功能 ---
-        async function exportConversation(format) {
-            if (!currentConversationId) { alert('請先選擇一個對話。'); return; }
-            const conversation = allConversations.find(c => c.id === currentConversationId);
-            if (!conversation) return;
-
-            if (format === 'txt') {
-                downloadFile(generateTxtContent(conversation), `${conversation.title}.txt`, 'text/plain');
-            } else if (format === 'pdf') {
-                await generateAndDownloadPdf(conversation);
-            }
-        }
-
-        async function exportSelectedConversations(format) {
-            const selectedIds = Array.from(document.querySelectorAll('.conversation-checkbox:checked')).map(cb => cb.dataset.id);
-            if (selectedIds.length === 0) { alert('請至少勾選一個對話進行導出。'); return; }
-            const conversationsToExport = allConversations.filter(c => selectedIds.includes(c.id));
-            
-            const zip = new JSZip();
-            document.getElementById(`export-zip-${format}`).textContent = '處理中...';
-
-            for (const conv of conversationsToExport) {
-                const fileName = `${conv.title.replace(/[\\/:*?"<>|]/g, '')}.${format}`;
-                if (format === 'txt') {
-                    zip.file(fileName, generateTxtContent(conv));
-                } else if (format === 'pdf') {
-                    const pdfBlob = await generatePdfBlob(conv);
-                    zip.file(fileName, pdfBlob);
-                }
-            }
-
-            zip.generateAsync({ type: 'blob' }).then(blob => {
-                downloadFile(blob, `ChatGPT_Export_${format}.zip`, 'application/zip');
-                document.getElementById(`export-zip-${format}`).textContent = `導出所選 (${format.toUpperCase()})`;
-            });
-        }
-
-        function generateTxtContent(conversation) {
-            let content = `標題: ${conversation.title}\n創建時間: ${formatTimestamp(conversation.create_time)}\n----------------------------------------\n\n`;
-            const rootNode = Object.values(conversation.mapping).find(node => !node.parent);
-            let path = [];
-            let currentNode = rootNode;
-            while (currentNode) {
-                if (currentNode.message) path.push(currentNode);
-                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
-                currentNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
-            }
-            path.forEach(node => {
-                const msg = node.message;
-                if (msg?.author && ['user', 'assistant'].includes(msg.author.role)) {
-                    content += `[${msg.author.role === 'user' ? '用戶' : 'AI'} - ${formatTimestamp(msg.create_time)}]\n${msg.content.parts.join('')}\n\n`;
-                }
-            });
-            return content;
-        }
-
-        async function generateAndDownloadPdf(conversation) {
-            const blob = await generatePdfBlob(conversation);
-            downloadFile(blob, `${conversation.title}.pdf`, 'application/pdf');
-        }
-        
-        async function generatePdfBlob(conversation) {
-            const pdfContainer = document.getElementById('pdf-export-container');
-            pdfContainer.innerHTML = generatePdfHtml(conversation);
-            pdfContainer.style.display = 'block';
-
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF({ orientation: 'p', unit: 'pt', format: 'a4' });
-            const page = pdfContainer.querySelector('.pdf-page');
-            const canvas = await html2canvas(page, { scale: 2, useCORS: true, windowWidth: page.scrollWidth, windowHeight: page.scrollHeight });
-            const imgData = canvas.toDataURL('image/png');
-            const imgProps = pdf.getImageProperties(imgData);
-            const pdfWidth = pdf.internal.pageSize.getWidth();
-            const pdfHeight = (imgProps.height * pdfWidth) / imgProps.width;
-            let heightLeft = pdfHeight;
-            let position = 0;
-
-            pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-            heightLeft -= pdf.internal.pageSize.getHeight();
-
-            while (heightLeft > 0) {
-                position = heightLeft - pdfHeight;
-                pdf.addPage();
-                pdf.addImage(imgData, 'PNG', 0, position, pdfWidth, pdfHeight);
-                heightLeft -= pdf.internal.pageSize.getHeight();
-            }
-            
-            pdfContainer.style.display = 'none';
-            pdfContainer.innerHTML = '';
-            return pdf.output('blob');
-        }
-
-        function generatePdfHtml(conversation) {
-            let messagesHtml = '';
-            const rootNode = Object.values(conversation.mapping).find(node => !node.parent);
-            let path = [];
-            let currentNode = rootNode;
-            while (currentNode) {
-                if (currentNode.message) path.push(currentNode);
-                const children = Object.values(conversation.mapping).filter(node => node.parent === currentNode.id);
-                currentNode = children.find(child => child.message?.author.role === 'assistant') || children[0];
-            }
-            path.forEach(node => {
-                const msg = node.message;
-                if (msg?.author && ['user', 'assistant'].includes(msg.author.role)) {
-                    const text = marked.parse(msg.content.parts.join(''), { gfm: true, breaks: true }).replace(/<pre>/g, '<pre style="white-space: pre-wrap; word-break: break-all;">');
-                    messagesHtml += `
-                        <div class="pdf-message ${msg.author.role}">
-                            <div class="pdf-message-content">
-                                <div>${text}</div>
-                                <div class="pdf-message-meta">${formatTimestamp(msg.create_time)}</div>
-                            </div>
-                        </div>`;
-                }
-            });
-            return `<div class="pdf-page"><div class="pdf-header"><h2>${conversation.title}</h2><p>創建於: ${formatTimestamp(conversation.create_time)}</p></div><div class="pdf-body">${messagesHtml}</div></div>`;
-        }
-        
-        // --- 聊天內文搜尋 ---
-        function handleChatSearch(e) {
-            const term = e.target.value.trim();
-            // 先清除舊的 highlight
-            chatMessages.innerHTML = chatMessages.innerHTML.replace(/<\/?mark class="chat-highlight">/g, "");
-            
-            chatSearchState = { term: term, results: [], currentIndex: -1 };
-            if (!term) { updateSearchCounter(); return; }
-
-            const regex = new RegExp(`(${term.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&')})`, 'gi');
-            chatMessages.querySelectorAll('.message-body').forEach(body => {
-                const walker = document.createTreeWalker(body, NodeFilter.SHOW_TEXT, null, false);
-                let node;
-                const nodesToReplace = [];
-                while (node = walker.nextNode()) {
-                    if (node.nodeValue.match(regex)) {
-                        nodesToReplace.push(node);
-                    }
-                }
-                nodesToReplace.forEach(node => {
-                    const fragment = document.createDocumentFragment();
-                    const parts = node.nodeValue.split(regex);
-                    for (let i = 0; i < parts.length; i++) {
-                        if (i % 2 === 1) {
-                            const mark = document.createElement('mark');
-                            mark.className = 'chat-highlight';
-                            mark.textContent = parts[i];
-                            fragment.appendChild(mark);
-                            chatSearchState.results.push(mark);
-                        } else {
-                            fragment.appendChild(document.createTextNode(parts[i]));
-                        }
-                    }
-                    node.parentNode.replaceChild(fragment, node);
-                });
-            });
-
-            if (chatSearchState.results.length > 0) {
-                chatSearchState.currentIndex = 0;
-                highlightCurrentSearchResult();
-            }
-            updateSearchCounter();
-        }
-
-        function navigateSearchResults(direction) {
-            if (chatSearchState.results.length === 0) return;
-            chatSearchState.currentIndex = (chatSearchState.currentIndex + direction + chatSearchState.results.length) % chatSearchState.results.length;
-            highlightCurrentSearchResult();
-            updateSearchCounter();
-        }
-
-        function highlightCurrentSearchResult() {
-            chatSearchState.results.forEach((el, index) => {
-                el.style.outline = index === chatSearchState.currentIndex ? '2px solid #ff4757' : 'none';
-            });
-            if (chatSearchState.currentIndex > -1) {
-                chatSearchState.results[chatSearchState.currentIndex].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
-        function updateSearchCounter() {
-            if (chatSearchState.results.length > 0) {
-                searchCounter.textContent = `${chatSearchState.currentIndex + 1} / ${chatSearchState.results.length}`;
-            } else {
-                searchCounter.textContent = '0 / 0';
-            }
-        }
-
-        // --- 主題切換 ---
-        function initTheme() {
-            const savedTheme = localStorage.getItem('theme') || 'light';
-            document.body.classList.add(savedTheme + '-mode');
-            if (savedTheme === 'dark') themeToggle.textContent = '☀️';
-        }
-
-        function toggleTheme() {
-            const isLight = document.body.classList.contains('light-mode');
-            document.body.classList.replace(isLight ? 'light-mode' : 'dark-mode', isLight ? 'dark-mode' : 'light-mode');
-            themeToggle.textContent = isLight ? '☀️' : '🌙';
-            localStorage.setItem('theme', isLight ? 'dark' : 'light');
-        }
-
-        // --- 輔助工具 ---
-        function formatTimestamp(unixTimestamp) {
-            if (!unixTimestamp) return 'N/A';
-            const date = new Date(unixTimestamp * 1000);
-            return new Intl.DateTimeFormat('zh-TW', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false }).format(date).replace(/\//g, '-');
-        }
-
-        function downloadFile(content, fileName, contentType) {
-            const a = document.createElement('a');
-            const file = new Blob([content], { type: contentType });
-            a.href = URL.createObjectURL(file);
-            a.download = fileName;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(a.href);
-        }
-    })();
-    </script>
+})(); // end IIFE
+</script>
 </body>
 </html>
