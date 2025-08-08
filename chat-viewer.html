@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天記錄</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.css">
+    <style>
+        /* 基本樣式 */
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            background-color: #FFE4E1;
+            color: #333;
+        }
+        .app {
+            display: flex;
+            height: 100vh;
+        }
+        .sidebar {
+            width: 300px;
+            background-color: #FFD2D2;
+            padding: 15px;
+            overflow-y: auto;
+            box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+        }
+        .main {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+        .header {
+            padding: 10px;
+            background-color: #FFB6C1;
+            text-align: center;
+        }
+        .content {
+            flex: 1;
+            overflow-y: auto;
+            padding: 15px;
+        }
+        .message {
+            margin-bottom: 15px;
+            padding: 10px;
+            border-radius: 5px;
+        }
+        .user {
+            background-color: #fff;
+            border: 1px solid #FFB6C1;
+        }
+        .assistant {
+            background-color: #FFB6C1;
+            border: 1px solid #fff;
+        }
+        .timestamp {
+            font-size: 0.8em;
+            color: #888;
+        }
+        .scrollbar {
+            scrollbar-width: thin;
+            scrollbar-color: #FFB6C1 #FFE4E1;
+        }
+        .scrollbar::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollbar::-webkit-scrollbar-thumb {
+            background-color: #FFB6C1;
+            border-radius: 4px;
+        }
+        .button {
+            display: inline-block;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            background-color: #FFB6C1;
+            color: #fff;
+            text-align: center;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .button:hover {
+            background-color: #ff99aa;
+        }
+    </style>
+</head>
+<body>
+<div class="app">
+    <div class="sidebar scrollbar">
+        <h3>聊天列表</h3>
+        <div id="conversationList"></div>
+    </div>
+    <div class="main">
+        <div class="header">
+            <h1>聊天記錄</h1>
+            <input type="file" id="fileInput" webkitdirectory />
+            <div id="controls">
+                <button id="exportTxt" class="button">導出TXT</button>
+                <button id="exportZip" class="button">導出ZIP</button>
+                <button id="toggleDarkMode" class="button">切換模式</button>
+            </div>
+            <div>
+                <input type="text" id="searchBar" placeholder="搜尋對話...">
+            </div>
+        </div>
+        <div class="content scrollbar" id="chatContent"></div>
+    </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.3.0/marked.min.js"></script>
+<script>
+    let allConversations = [];
+    const chatContent = document.getElementById('chatContent');
+    const conversationList = document.getElementById('conversationList');
+    const fileInput = document.getElementById('fileInput');
+    const exportTxt = document.getElementById('exportTxt');
+    const exportZip = document.getElementById('exportZip');
+    const searchBar = document.getElementById('searchBar');
+    const toggleDarkMode = document.getElementById('toggleDarkMode');
+
+    fileInput.addEventListener('change', async (event) => {
+        const files = event.target.files;
+        const folder = {};
+        for (const file of files) {
+            folder[file.webkitRelativePath] = file;
+        }
+        if (folder['conversations.json']) {
+            const jsonFile = folder['conversations.json'];
+            const jsonText = await jsonFile.text();
+            const parsedData = JSON.parse(jsonText);
+            allConversations = Array.isArray(parsedData) ? parsedData : parsedData.conversations || [];
+            renderConversations();
+        } else {
+            alert('未發現 conversations.json');
+        }
+    });
+
+    function renderConversations() {
+        conversationList.innerHTML = '';
+        allConversations.forEach((conversation, index) => {
+            const div = document.createElement('div');
+            div.textContent = conversation.title || `聊天 ${index + 1}`;
+            div.addEventListener('click', () => {
+                displayConversation(conversation);
+            });
+            conversationList.appendChild(div);
+        });
+    }
+
+    function displayConversation(conversation) {
+        chatContent.innerHTML = '';
+        if (conversation.messages) {
+            conversation.messages.forEach((message) => {
+                if (!message.content || (message.role !== 'user' && message.role !== 'assistant')) return;
+                const div = document.createElement('div');
+                div.classList.add('message', message.role);
+                div.innerHTML = `<div class="timestamp">${new Date(message.create_time * 1000).toISOString().replace('T', ' ').substring(0, 19)}</div>${marked(message.content)}`;
+                chatContent.appendChild(div);
+            });
+        }
+    }
+
+    exportTxt.addEventListener('click', () => {
+        const blob = new Blob([getConversationAsText()], { type: 'text/plain' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = 'conversation.txt';
+        link.click();
+    });
+
+    function getConversationAsText() {
+        return allConversations.map((conversation) => {
+            return `Title: ${conversation.title}\nMessages:\n${conversation.messages.map(m => `${new Date(m.create_time * 1000).toISOString()}\n${m.role}: ${m.content}`).join('\n')}`;
+        }).join('\n\n');
+    }
+
+    exportZip.addEventListener('click', () => {
+        alert('ZIP 導出功能待完成');
+    });
+
+    searchBar.addEventListener('input', () => {
+        const keyword = searchBar.value.toLowerCase();
+        const filteredConversations = allConversations.filter(conversation =>
+            conversation.title.toLowerCase().includes(keyword) ||
+            conversation.messages.some(m => m.content && m.content.toLowerCase().includes(keyword))
+        );
+        renderFilteredConversations(filteredConversations);
+    });
+
+    function renderFilteredConversations(filteredConversations) {
+        conversationList.innerHTML = '';
+        filteredConversations.forEach((conversation, index) => {
+            const div = document.createElement('div');
+            div.textContent = conversation.title || `聊天 ${index + 1}`;
+            div.addEventListener('click', () => {
+                displayConversation(conversation);
+            });
+            conversationList.appendChild(div);
+        });
+    }
+
+    toggleDarkMode.addEventListener('click', () => {
+        document.body.classList.toggle('dark-mode');
+    });
+</script>
+</body>
+</html>
