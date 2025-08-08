@@ -1,912 +1,1256 @@
-<!doctype html>
-<html lang="en">
+<!DOCTYPE html>
+<html lang="zh-Hant">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Chat Records</title>
-<!-- Dependencies (CDN) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/styles/github-dark.min.css">
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/gh/highlightjs/cdn-release@11.8.0/build/highlight.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.9.3/html2pdf.bundle.min.js"></script>
-<!-- Optional: gpt-3-encoder for a more accurate token count if available. If it fails to load, a fallback is used. -->
-<script src="https://cdn.jsdelivr.net/npm/gpt-3-encoder@1.1.4/dist/encoder.min.js"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天記錄檢視器</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/marked/4.2.12/marked.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/atom-one-dark.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
-<style>
-  :root{
-    --bg:#fff9fb;
-    --panel:#fff;
-    --muted:#8b7d86;
-    --accent:#ffd2d2;
-    --pink:#ffe4e1;
-    --bubble-user:#fff;
-    --bubble-assistant:#fffaf0;
-    --border:#f1dfe0;
-    --text:#222;
-    --code-bg:#0b0b0b;
-    --scrollbar:#ffb3b3;
-  }
-  *{box-sizing:border-box;font-family:Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
-  body{margin:0;background:linear-gradient(180deg,var(--bg),#fff);color:var(--text);height:100vh;display:flex;overflow:hidden}
-  /* Sidebar */
-  .sidebar{width:340px;min-width:260px;background:linear-gradient(0deg,var(--panel),#fff);border-right:1px solid var(--border);padding:16px;display:flex;flex-direction:column;gap:12px}
-  .title{font-weight:700;font-size:18px;display:flex;align-items:center;gap:8px}
-  .uploadRow{display:flex;gap:8px;align-items:center}
-  .btn{background:var(--accent);border-radius:10px;padding:8px 10px;border:1px solid #f5c7c7;cursor:pointer}
-  .btn.secondary{background:transparent;border:1px dashed #f5c7c7}
-  .controls{display:flex;gap:8px;flex-wrap:wrap}
-  .search{display:flex;gap:8px;align-items:center}
-  .search input{padding:8px;border-radius:8px;border:1px solid #eee;width:100%}
-  .convList{overflow:auto;flex:1;padding-right:6px;margin-top:8px}
-  .convItem{padding:10px;border-radius:10px;margin-bottom:8px;border:1px solid transparent;cursor:pointer;display:flex;flex-direction:column;gap:6px}
-  .convItem:hover{background:#fff6f6;border-color:#ffe6e6}
-  .convTitle{font-weight:600}
-  .convMeta{font-size:12px;color:var(--muted)}
-  .convStats{font-size:12px;color:var(--muted);display:flex;gap:8px}
-  .topbar{display:flex;gap:8px;align-items:center}
-  /* Main content */
-  .main{flex:1;display:flex;flex-direction:column;height:100vh}
-  .header{padding:12px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(180deg,rgba(255,255,255,0.6),transparent)}
-  .chatArea{flex:1;overflow:auto;padding:20px;display:flex;flex-direction:column;gap:16px}
-  .controlsRow{display:flex;gap:8px;align-items:center}
-  .message{max-width:75%;padding:12px;border-radius:14px;box-shadow:0 1px 0 rgba(0,0,0,0.02);white-space:pre-wrap;word-break:break-word}
-  .msgUser{align-self:flex-end;background:var(--bubble-user);border:1px solid #f0e7e7}
-  .msgAssistant{align-self:flex-start;background:var(--bubble-assistant);border:1px solid #f3e9e0}
-  .msgMeta{font-size:12px;color:var(--muted);margin-bottom:6px}
-  .msgActions{display:flex;gap:8px;margin-top:6px}
-  .copyBtn{padding:4px 8px;border-radius:8px;border:1px solid #eee;background:transparent;cursor:pointer;font-size:12px}
-  pre.codeBlock{background:#111;padding:12px;border-radius:8px;color:#eee;overflow:auto;white-space:pre-wrap;word-wrap:break-word}
-  .versionBadge{font-size:11px;padding:4px 6px;border-radius:8px;background:#ffdede;color:#6a0505}
-  /* Custom scrollbar */
-  ::-webkit-scrollbar{height:10px;width:10px}
-  ::-webkit-scrollbar-track{background:transparent}
-  ::-webkit-scrollbar-thumb{background:var(--scrollbar);border-radius:8px}
-  /* Mobile */
-  @media (max-width:900px){
-    .sidebar{display:none}
-    .main{padding:8px}
-  }
-  /* small helper */
-  .muted{color:var(--muted);font-size:13px}
-  .small{font-size:12px;color:var(--muted)}
-  .highlight{background:rgba(255,200,200,0.6);padding:2px 3px;border-radius:4px}
-  .actionsTop{display:flex;gap:8px;align-items:center}
-  .tag{background:#fff2f2;border:1px solid #ffe6e6;padding:4px 6px;border-radius:6px;font-size:12px}
-  .filePreview{max-width:320px;border-radius:8px;border:1px solid #eee;padding:6px;margin-bottom:8px}
-</style>
+    <style>
+        /* CSS Variables for Theming */
+        :root {
+            --font-family: 'Segoe UI', 'Microsoft JhengHei', 'PingFang TC', sans-serif;
+            
+            /* Light Theme (Cute Pink) */
+            --bg-color-light: #fff8f7;
+            --sidebar-bg-light: #ffe4e1;
+            --chat-bg-light: #ffffff;
+            --text-color-light: #333;
+            --text-secondary-light: #888;
+            --accent-color-light: #ff8a80;
+            --highlight-bg-light: #ffd2d2;
+            --user-msg-bg-light: #f1f1f1;
+            --assistant-msg-bg-light: #e1f5fe;
+            --button-bg-light: #ffd2d2;
+            --button-hover-bg-light: #ffbdaf;
+            --border-color-light: #f0f0f0;
+            --scrollbar-thumb-light: #ffbdaf;
+            --scrollbar-track-light: #ffe4e1;
+            --code-bg-light: #2d2d2d;
+            --code-text-light: #f8f8f2;
+
+            /* Dark Theme */
+            --bg-color-dark: #1e1e1e;
+            --sidebar-bg-dark: #252526;
+            --chat-bg-dark: #1e1e1e;
+            --text-color-dark: #d4d4d4;
+            --text-secondary-dark: #888;
+            --accent-color-dark: #ff8a80;
+            --highlight-bg-dark: #6a332f;
+            --user-msg-bg-dark: #3a3a3a;
+            --assistant-msg-bg-dark: #2a3a4a;
+            --button-bg-dark: #3a3a3a;
+            --button-hover-bg-dark: #4a4a4a;
+            --border-color-dark: #333;
+            --scrollbar-thumb-dark: #555;
+            --scrollbar-track-dark: #333;
+            --code-bg-dark: #1e1e1e;
+            --code-text-dark: #d4d4d4;
+        }
+
+        /* Applying themes */
+        body {
+            --bg-color: var(--bg-color-light);
+            --sidebar-bg: var(--sidebar-bg-light);
+            --chat-bg: var(--chat-bg-light);
+            --text-color: var(--text-color-light);
+            --text-secondary: var(--text-secondary-light);
+            --accent-color: var(--accent-color-light);
+            --highlight-bg: var(--highlight-bg-light);
+            --user-msg-bg: var(--user-msg-bg-light);
+            --assistant-msg-bg: var(--assistant-msg-bg-light);
+            --button-bg: var(--button-bg-light);
+            --button-hover-bg: var(--button-hover-bg-light);
+            --border-color: var(--border-color-light);
+            --scrollbar-thumb: var(--scrollbar-thumb-light);
+            --scrollbar-track: var(--scrollbar-track-light);
+            --code-bg: var(--code-bg-light);
+            --code-text: var(--code-text-light);
+
+            font-family: var(--font-family);
+            margin: 0;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            transition: background-color 0.3s, color 0.3s;
+            overflow: hidden;
+        }
+
+        body.dark-mode {
+            --bg-color: var(--bg-color-dark);
+            --sidebar-bg: var(--sidebar-bg-dark);
+            --chat-bg: var(--chat-bg-dark);
+            --text-color: var(--text-color-dark);
+            --text-secondary: var(--text-secondary-dark);
+            --accent-color: var(--accent-color-dark);
+            --highlight-bg: var(--highlight-bg-dark);
+            --user-msg-bg: var(--user-msg-bg-dark);
+            --assistant-msg-bg: var(--assistant-msg-bg-dark);
+            --button-bg: var(--button-bg-dark);
+            --button-hover-bg: var(--button-hover-bg-dark);
+            --border-color: var(--border-color-dark);
+            --scrollbar-thumb: var(--scrollbar-thumb-dark);
+            --scrollbar-track: var(--scrollbar-track-dark);
+            --code-bg: var(--code-bg-dark);
+            --code-text: var(--code-text-dark);
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar {
+            width: 12px;
+            height: 12px;
+        }
+        ::-webkit-scrollbar-track {
+            background: var(--scrollbar-track);
+        }
+        ::-webkit-scrollbar-thumb {
+            background-color: var(--scrollbar-thumb);
+            border-radius: 10px;
+            border: 3px solid var(--scrollbar-track);
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background-color: var(--accent-color);
+        }
+
+        /* Main Layout */
+        .container {
+            display: flex;
+            height: 100vh;
+        }
+
+        .sidebar {
+            width: 320px;
+            background-color: var(--sidebar-bg);
+            display: flex;
+            flex-direction: column;
+            border-right: 1px solid var(--border-color);
+            transition: background-color 0.3s;
+            flex-shrink: 0;
+        }
+
+        .sidebar-header {
+            padding: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .sidebar-header h1 {
+            margin: 0;
+            font-size: 24px;
+            color: var(--accent-color);
+            text-align: center;
+        }
+        
+        .upload-section {
+            padding: 15px;
+            text-align: center;
+        }
+
+        .upload-btn {
+            width: 100%;
+            padding: 12px;
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            transition: background-color 0.2s;
+        }
+        .upload-btn:hover {
+            opacity: 0.9;
+        }
+        #file-input { display: none; }
+
+        .controls {
+            padding: 0 15px 15px 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .search-box, .sort-box {
+            position: relative;
+            margin-bottom: 10px;
+        }
+        .search-box i, .sort-box i {
+            position: absolute;
+            left: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-secondary);
+        }
+
+        #search-input, #sort-select {
+            width: 100%;
+            padding: 10px 10px 10px 35px;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background-color: var(--chat-bg);
+            color: var(--text-color);
+            box-sizing: border-box;
+        }
+
+        .batch-actions {
+            display: flex;
+            gap: 10px;
+        }
+        .batch-actions button {
+            flex-grow: 1;
+            padding: 10px;
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .batch-actions button:hover {
+            background-color: var(--button-hover-bg);
+        }
+
+        #conversation-list-container {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 10px;
+        }
+
+        #conversation-list {
+            list-style: none;
+            padding: 0;
+            margin: 0;
+        }
+
+        .conversation-item {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            transition: background-color 0.2s, border-color 0.2s;
+            position: relative;
+        }
+        .conversation-item input[type="checkbox"] {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            transform: scale(1.2);
+        }
+        .conversation-item:hover {
+            background-color: var(--highlight-bg);
+        }
+        .conversation-item.active {
+            background-color: var(--accent-color);
+            color: white;
+            border-color: var(--accent-color);
+        }
+        .conversation-item.active .conv-title,
+        .conversation-item.active .conv-date,
+        .conversation-item.active .conv-stats,
+        .conversation-item.active .conv-preview {
+            color: white !important;
+        }
+
+        .conv-title {
+            font-weight: bold;
+            margin-bottom: 5px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 25px; /* Space for checkbox */
+        }
+        .conv-date {
+            font-size: 0.8em;
+            color: var(--text-secondary);
+            margin-bottom: 5px;
+        }
+        .conv-stats {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-bottom: 8px;
+        }
+        .conv-preview {
+            font-size: 0.85em;
+            color: var(--text-secondary);
+            background-color: rgba(0,0,0,0.05);
+            padding: 5px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+        .conv-preview .highlight {
+            background-color: var(--accent-color);
+            color: white;
+            font-weight: bold;
+        }
+
+        .sidebar-footer {
+            padding: 15px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        #conv-count {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+        .theme-switch {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 26px;
+        }
+        .switch input { display: none; }
+        .slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--button-bg);
+            transition: .4s;
+            border-radius: 26px;
+        }
+        .slider:before {
+            position: absolute;
+            content: "";
+            height: 20px; width: 20px;
+            left: 3px; bottom: 3px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .slider {
+            background-color: var(--accent-color);
+        }
+        input:checked + .slider:before {
+            transform: translateX(24px);
+        }
+
+        .chat-container {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--chat-bg);
+            position: relative;
+        }
+
+        .chat-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+        #chat-title {
+            font-size: 1.2em;
+            font-weight: bold;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .chat-actions button {
+            margin-left: 10px;
+            padding: 8px 15px;
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .chat-actions button:hover {
+            background-color: var(--button-hover-bg);
+        }
+        .chat-actions button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #chat-messages {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            max-width: 90%;
+        }
+        .message-content {
+            padding: 12px 18px;
+            border-radius: 18px;
+            position: relative;
+        }
+        .message .timestamp {
+            font-size: 0.75em;
+            color: var(--text-secondary);
+            margin-top: 8px;
+        }
+        .user-message {
+            margin-left: auto;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+        .user-message .message-content {
+            background-color: var(--user-msg-bg);
+            border-bottom-right-radius: 4px;
+        }
+        .assistant-message {
+            margin-right: auto;
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        .assistant-message .message-content {
+            background-color: var(--assistant-msg-bg);
+            border-bottom-left-radius: 4px;
+        }
+        
+        .message-inner-content {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            white-space: pre-wrap;
+        }
+
+        .message-inner-content p { margin: 0 0 10px 0; }
+        .message-inner-content p:last-child { margin-bottom: 0; }
+        .message-inner-content ul, .message-inner-content ol { padding-left: 20px; }
+        .message-inner-content a { color: var(--accent-color); }
+        
+        .message-inner-content pre {
+            background-color: var(--code-bg);
+            color: var(--code-text);
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            position: relative;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        
+        .copy-code-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background-color: #555;
+            color: white;
+            border: none;
+            padding: 5px 8px;
+            border-radius: 5px;
+            cursor: pointer;
+            opacity: 0;
+            transition: opacity 0.2s;
+            font-size: 0.8em;
+        }
+        pre:hover .copy-code-btn {
+            opacity: 1;
+        }
+        .copy-code-btn:hover {
+            background-color: #777;
+        }
+
+        .copy-message-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-top: 5px;
+            opacity: 0.6;
+            transition: opacity 0.2s;
+        }
+        .copy-message-btn:hover {
+            opacity: 1;
+            color: var(--accent-color);
+        }
+
+        .welcome-screen {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            text-align: center;
+            color: var(--text-secondary);
+        }
+        .welcome-screen i {
+            font-size: 5em;
+            margin-bottom: 20px;
+            color: var(--highlight-bg);
+        }
+        .welcome-screen h2 {
+            font-size: 2em;
+            color: var(--text-color);
+        }
+
+        .scroll-buttons {
+            position: absolute;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .scroll-buttons button {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 1px solid var(--border-color);
+            background-color: var(--button-bg);
+            color: var(--text-color);
+            font-size: 1.2em;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: none; /* Initially hidden */
+        }
+        .scroll-buttons button:hover {
+            background-color: var(--button-hover-bg);
+            transform: scale(1.1);
+        }
+        
+        .chat-search-bar {
+            position: absolute;
+            top: 80px;
+            right: 20px;
+            background-color: var(--sidebar-bg);
+            padding: 10px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            z-index: 10;
+            display: none; /* Initially hidden */
+        }
+        #chat-search-input {
+            border: 1px solid var(--border-color);
+            border-radius: 5px;
+            padding: 5px;
+            background-color: var(--chat-bg);
+            color: var(--text-color);
+        }
+        .chat-search-bar button {
+            background: none;
+            border: none;
+            font-size: 1em;
+            cursor: pointer;
+            color: var(--text-color);
+        }
+        #chat-search-nav {
+            font-size: 0.9em;
+            color: var(--text-secondary);
+        }
+        .highlight-search {
+            background-color: yellow;
+            color: black;
+        }
+
+        /* Mobile Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                position: absolute;
+                width: 100%;
+                height: 100%;
+                z-index: 100;
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+            }
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            .chat-container {
+                width: 100%;
+            }
+            .chat-header {
+                padding-left: 50px; /* Space for menu toggle */
+            }
+            #menu-toggle {
+                display: block !important;
+                position: absolute;
+                left: 15px;
+                top: 50%;
+                transform: translateY(-50%);
+                font-size: 1.5em;
+                background: none;
+                border: none;
+                color: var(--text-color);
+                cursor: pointer;
+            }
+        }
+
+    </style>
 </head>
 <body>
-  <div class="sidebar" id="sidebar">
-    <div class="title">Chat Records</div>
-    <div class="uploadRow">
-      <label class="btn" title="Upload a single conversations.json file">
-        Upload JSON<input id="fileJson" type="file" accept=".json" style="display:none">
-      </label>
-      <label class="btn secondary" title="Upload folder exported by OpenAI (contains conversations.json and attachments)">
-        Upload Folder<input id="dirInput" type="file" webkitdirectory directory multiple style="display:none">
-      </label>
+
+    <div class="container">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <h1><i class="fa-solid fa-comments"></i> 聊天記錄</h1>
+            </div>
+
+            <div class="upload-section">
+                <input type="file" id="file-input" accept=".json">
+                <label for="file-input" class="upload-btn">
+                    <i class="fa-solid fa-upload"></i> 上傳 conversations.json
+                </label>
+            </div>
+
+            <div class="controls">
+                <div class="search-box">
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <input type="text" id="search-input" placeholder="搜尋標題或內容關鍵字...">
+                </div>
+                <div class="sort-box">
+                    <i class="fa-solid fa-sort"></i>
+                    <select id="sort-select">
+                        <option value="newest">日期排序 (新到舊)</option>
+                        <option value="oldest">日期排序 (舊到新)</option>
+                        <option value="az">標題排序 (A-Z)</option>
+                        <option value="za">標題排序 (Z-A)</option>
+                    </select>
+                </div>
+                <div class="batch-actions">
+                    <button id="select-all-btn"><i class="fa-solid fa-check-double"></i> 全選</button>
+                    <button id="export-zip-btn"><i class="fa-solid fa-file-zipper"></i> 導出ZIP</button>
+                </div>
+            </div>
+
+            <div id="conversation-list-container">
+                <ul id="conversation-list"></ul>
+            </div>
+
+            <div class="sidebar-footer">
+                <span id="conv-count">未載入檔案</span>
+                <div class="theme-switch">
+                    <i class="fa-solid fa-sun"></i>
+                    <label class="switch">
+                        <input type="checkbox" id="theme-toggle">
+                        <span class="slider"></span>
+                    </label>
+                    <i class="fa-solid fa-moon"></i>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Chat Area -->
+        <main class="chat-container">
+            <button id="menu-toggle" style="display: none;"><i class="fa-solid fa-bars"></i></button>
+            <div class="chat-header">
+                <h2 id="chat-title"></h2>
+                <div class="chat-actions">
+                    <button id="chat-search-btn" disabled><i class="fa-solid fa-magnifying-glass"></i> 搜尋</button>
+                    <button id="export-txt-btn" disabled><i class="fa-solid fa-file-alt"></i> 導出 TXT</button>
+                    <button id="export-pdf-btn" disabled><i class="fa-solid fa-file-pdf"></i> 導出 PDF</button>
+                </div>
+            </div>
+            
+            <div class="chat-search-bar" id="chat-search-bar">
+                <input type="text" id="chat-search-input" placeholder="在對話中搜尋...">
+                <button id="chat-search-prev">◀️</button>
+                <span id="chat-search-nav">0 / 0</span>
+                <button id="chat-search-next">▶️</button>
+                <button id="chat-search-close">✖️</button>
+            </div>
+
+            <div id="chat-messages">
+                <div class="welcome-screen">
+                    <i class="fa-solid fa-rocket"></i>
+                    <h2>歡迎使用聊天記錄檢視器</h2>
+                    <p>請點擊左上角的按鈕來上傳您的 <strong>conversations.json</strong> 檔案。</p>
+                </div>
+            </div>
+
+            <div class="scroll-buttons">
+                <button id="scroll-to-top"><i class="fa-solid fa-arrow-up"></i></button>
+                <button id="scroll-to-bottom"><i class="fa-solid fa-arrow-down"></i></button>
+            </div>
+        </main>
     </div>
 
-    <div class="controls">
-      <div class="search" style="flex:1">
-        <input id="globalSearch" placeholder="Search conversations or messages..." />
-      </div>
-      <div class="actionsTop">
-        <button class="btn" id="exportAllTxt">Export All .txt</button>
-        <button class="btn" id="exportAllZip">Export Selected .zip</button>
-      </div>
-    </div>
+    <script>
+    // Using an IIFE to avoid polluting the global scope and prevent re-declaration errors
+    (function() {
+        // DOM Elements
+        const fileInput = document.getElementById('file-input');
+        const conversationList = document.getElementById('conversation-list');
+        const chatTitle = document.getElementById('chat-title');
+        const chatMessages = document.getElementById('chat-messages');
+        const convCount = document.getElementById('conv-count');
+        const searchInput = document.getElementById('search-input');
+        const sortSelect = document.getElementById('sort-select');
+        const exportTxtBtn = document.getElementById('export-txt-btn');
+        const exportPdfBtn = document.getElementById('export-pdf-btn');
+        const exportZipBtn = document.getElementById('export-zip-btn');
+        const selectAllBtn = document.getElementById('select-all-btn');
+        const themeToggle = document.getElementById('theme-toggle');
+        const welcomeScreen = document.querySelector('.welcome-screen');
+        const scrollToTopBtn = document.getElementById('scroll-to-top');
+        const scrollToBottomBtn = document.getElementById('scroll-to-bottom');
+        const chatSearchBtn = document.getElementById('chat-search-btn');
+        const chatSearchBar = document.getElementById('chat-search-bar');
+        const chatSearchInput = document.getElementById('chat-search-input');
+        const chatSearchNav = document.getElementById('chat-search-nav');
+        const chatSearchPrev = document.getElementById('chat-search-prev');
+        const chatSearchNext = document.getElementById('chat-search-next');
+        const chatSearchClose = document.getElementById('chat-search-close');
+        const menuToggle = document.getElementById('menu-toggle');
+        const sidebar = document.getElementById('sidebar');
 
-    <div class="muted small">Sort by:
-      <select id="sortSelect">
-        <option value="newest">Newest</option>
-        <option value="oldest">Oldest</option>
-        <option value="az">A - Z</option>
-        <option value="za">Z - A</option>
-      </select>
-    </div>
+        // State variables
+        let allConversations = [];
+        let currentConversationId = null;
+        let chatSearchMatches = [];
+        let currentMatchIndex = -1;
 
-    <div class="convList" id="convList" aria-live="polite"></div>
-    <div class="small muted" id="footerInfo">No file loaded</div>
-  </div>
-
-  <div class="main">
-    <div class="header">
-      <div style="display:flex;align-items:center;gap:12px">
-        <div id="convHeaderTitle" style="font-weight:700">Open a conversations.json to begin</div>
-        <div id="convHeaderMeta" class="muted small"></div>
-      </div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <button class="btn" id="toggleTheme">Toggle Dark/Light</button>
-        <button class="btn" id="downloadConversation" style="display:none">Export .txt</button>
-        <button class="btn" id="downloadPDF" style="display:none">Export PDF</button>
-        <button class="btn" id="copyConversation" style="display:none">Copy</button>
-      </div>
-    </div>
-
-    <div class="chatArea" id="chatArea">
-      <div class="muted">No conversation selected</div>
-    </div>
-  </div>
-
-<script>
-/*
-  Chat Records Viewer
-  - Avoids duplicate global variables by attaching a single namespace to window.__ChatExportViewer
-  - Robust parsing for old/new OpenAI export formats
-  - Renders only user & assistant roles, skips system/tool
-  - Multiplies create_time by 1000 if appears to be in seconds
-  - Handles folder uploads (attachments: look for files named <id>-<name> or just <name>)
-  - Markdown rendering via marked + highlight.js
-  - Export single conversation .txt, export selected .zip, export PDF (html2pdf)
-  - Search across conversations with preview + keyword highlighting BEFORE opening a conversation
-*/
-
-(function(){
-  if (window.__ChatExportViewerInitialized) {
-    console.warn('Chat viewer already initialized in this page. Reusing instance.');
-    return;
-  }
-  window.__ChatExportViewerInitialized = true;
-
-  // ---------- STATE ----------
-  const state = {
-    filesMap: new Map(),      // filename -> File
-    conversations: [],        // normalized array of conversations
-    filteredIndices: [],      // indices visible after search
-    currentIndex: null,
-    theme: 'light'
-  };
-
-  // ---------- HELPERS ----------
-  function safeJSONParse(txt){
-    try { return JSON.parse(txt); } catch(e) { return null; }
-  }
-
-  function isProbablyEpochSeconds(n){
-    // returns true if n looks like seconds timestamp (10 digits)
-    if (typeof n !== 'number') return false;
-    if (n > 1e11) return false; // already ms
-    return n > 0;
-  }
-
-  function toDate(ts){
-    // ts may be seconds or ms; handle both. Ensure not 1970 by checking magnitude
-    if (ts == null) return null;
-    let n = Number(ts);
-    if (Number.isNaN(n)) return null;
-    // If n looks like seconds (e.g., < 1e12), assume seconds and multiply
-    if (n > 1e12) {
-      // already ms
-    } else if (n > 1e10) {
-      // maybe ms but weird -- treat as ms
-    } else {
-      n = n * 1000;
-    }
-    return new Date(n);
-  }
-
-  function formatDate(d){
-    if (!d) return '';
-    // YYYY-MM-DD HH:MM:SS
-    const pad = (n) => (n<10 ? '0'+n : n);
-    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-  }
-
-  function ensureArray(x){ return Array.isArray(x) ? x : (x ? [x] : []); }
-
-  // Attempt to extract a message role
-  function getMessageRole(msg){
-    if (!msg) return 'unknown';
-    if (msg.role) return msg.role;
-    if (msg.author && msg.author.role) return msg.author.role;
-    if (msg.from) return msg.from; // sometimes 'user'/'assistant'
-    if (msg.type) return msg.type;
-    return 'unknown';
-  }
-
-  // Extract textual content from many possible shapes
-  function extractMessageText(msg){
-    if (!msg) return '';
-    // Common OpenAI export shape: msg.content.parts -> array
-    if (msg.content){
-      if (typeof msg.content === 'string') return msg.content;
-      if (Array.isArray(msg.content)) return msg.content.join('\n');
-      if (Array.isArray(msg.content?.parts)) return msg.content.parts.join('\n');
-      if (typeof msg.content?.text === 'string') return msg.content.text;
-      // Some export stores as structured 'cells' or segments
-      if (Array.isArray(msg.content?.segments)) {
-        return msg.content.segments.map(s => s.text ?? '').join('\n');
-      }
-    }
-    // Older formats: msg.message or msg.text or msg.value
-    if (typeof msg.message === 'string') return msg.message;
-    if (typeof msg.text === 'string') return msg.text;
-    if (typeof msg.value === 'string') return msg.value;
-    if (Array.isArray(msg.parts)) return msg.parts.join('\n');
-    // fallback: try to stringify a 'content' object
-    if (msg.content && typeof msg.content === 'object') {
-      // try to pick the first stringy property
-      for (const k of ['text','body','value']) {
-        if (typeof msg.content[k] === 'string') return msg.content[k];
-      }
-    }
-    return '';
-  }
-
-  // detect attachments metadata inside message
-  function getMessageAttachments(msg){
-    if (!msg) return [];
-    const att = [];
-    // Typical property names
-    for (const key of ['attachments','files','file','media','images']) {
-      const v = msg[key];
-      if (Array.isArray(v)) {
-        v.forEach(a=>{
-          if (a && (a.id || a.name || a.filename || a.url)) {
-            att.push(a);
-          }
-        });
-      } else if (v && typeof v === 'object' && (v.id || v.name)) {
-        att.push(v);
-      }
-    }
-    // sometimes the content contains attachments info
-    if (msg.content && Array.isArray(msg.content?.attachments)) {
-      msg.content.attachments.forEach(a=>att.push(a));
-    }
-    // normalize: ensure id and name fields exist
-    return att.map(a=>{
-      return {
-        id: a.id ?? a.file_id ?? a.filename ?? null,
-        name: a.name ?? a.filename ?? a.file_name ?? (a.url ? a.url.split('/').pop() : null),
-        url: a.url ?? a.href ?? null,
-        raw: a
-      };
-    });
-  }
-
-  // Find matching File object in uploaded folder
-  function findAttachmentFile(attachment){
-    if (!attachment) return null;
-    const candidates = [];
-    const name = attachment.name;
-    const id = attachment.id;
-    if (!state.filesMap || state.filesMap.size===0) return null;
-    // Try <id>-<name>
-    if (id && name) {
-      const combined = `${id}-${name}`;
-      if (state.filesMap.has(combined)) return state.filesMap.get(combined);
-    }
-    // Try just name
-    if (name && state.filesMap.has(name)) return state.filesMap.get(name);
-    // Try name in lower/upper forms
-    for (let key of state.filesMap.keys()){
-      if (key.endsWith(`-${name}`) || key === name) return state.filesMap.get(key);
-      if (name && key.toLowerCase().endsWith(name.toLowerCase())) return state.filesMap.get(key);
-    }
-    return null;
-  }
-
-  // Token counting: use gpt-3-encoder if available, else fallback heuristic
-  function countTokens(text){
-    if (!text) return 0;
-    try {
-      if (typeof encode === 'function') {
-        return encode(text).length;
-      }
-    } catch(e){ /* ignore */ }
-    // fallback: heuristic: tokens ~ chars/4
-    const chars = text.length;
-    return Math.max(1, Math.round(chars/4));
-  }
-
-  function countWords(text){
-    if (!text) return 0;
-    return (text.trim().match(/\S+/g) || []).length;
-  }
-
-  // ---------- PARSING CONVERSATIONS ----------
-  function normalizeConversationsFromParsed(parsed){
-    // parsed might be:
-    // - an array of conversation objects (old)
-    // - an object with items: [] (new)
-    // - an object with conversations property
-    let items = [];
-    if (!parsed) return [];
-    if (Array.isArray(parsed)) items = parsed;
-    else if (Array.isArray(parsed.items)) items = parsed.items;
-    else if (Array.isArray(parsed.conversations)) items = parsed.conversations;
-    else {
-      // attempt to find first array of objects that look like conversations
-      for (const k of Object.keys(parsed)) {
-        if (Array.isArray(parsed[k]) && parsed[k].length>0 && typeof parsed[k][0] === 'object') {
-          items = parsed[k];
-          break;
-        }
-      }
-    }
-
-    // Now normalize each item into an object with id, title, messages[] etc.
-    const out = items.map((conv, idx) => {
-      // Common fields: title, id, create_time or created_at or updated_at
-      const id = conv.id ?? conv.conversation_id ?? `conv-${idx}`;
-      const title = conv.title ?? conv.name ?? (conv.metadata?.title) ?? `Conversation ${idx+1}`;
-      // messages might be in conv.messages or conv.items or conv.mapping
-      let rawMsgs = [];
-      if (Array.isArray(conv.messages)) rawMsgs = conv.messages;
-      else if (Array.isArray(conv.items)) rawMsgs = conv.items;
-      else if (Array.isArray(conv.messages_list)) rawMsgs = conv.messages_list;
-      else if (Array.isArray(conv.dialogue)) rawMsgs = conv.dialogue;
-      else {
-        // try to inspect keys to locate message arrays
-        for (const k of Object.keys(conv)) {
-          if (Array.isArray(conv[k]) && conv[k].length>0) {
-            // Heuristic: message objects should have a role or author or create_time
-            const sample = conv[k][0];
-            if (sample && (sample.role || sample.author || sample.create_time || sample.content || sample.text || sample.message)) {
-              rawMsgs = conv[k];
-              break;
-            }
-          }
-        }
-      }
-      // Normalize each message: preserve original object, compute role, text, timestamp, attachments, versions
-      const messages = (rawMsgs || []).map(m => {
-        const role = (getMessageRole(m) || '').toString();
-        const text = extractMessageText(m) || '';
-        const timestamp = (() => {
-          // prefer m.create_time or m.created_at or m.timestamp
-          if (m.create_time) return m.create_time;
-          if (m.created_at) return m.created_at;
-          if (m.timestamp) return m.timestamp;
-          if (m.date) return m.date;
-          return null;
-        })();
-        const attachments = getMessageAttachments(m);
-        // detect edit history / versions - some exports store edits in m.edits or m.versions
-        const versions = [];
-        if (Array.isArray(m.versions)) {
-          m.versions.forEach(v=>{
-            versions.push({text: extractMessageText(v), ts: v.create_time || v.timestamp || null, raw:v});
-          });
-        }
-        if (Array.isArray(m.edits)) {
-          m.edits.forEach(v=>{
-            versions.push({text: extractMessageText(v), ts: v.create_time || v.timestamp || null, raw:v});
-          });
-        }
-        // If the current message has a `content` that is an array of parts representing versions, try to capture them
-        if (Array.isArray(m.content?.parts) && m.content.parts.length>1) {
-          // keep as single message; but versions might be absent. We won't invent versions here.
-        }
-        return {
-          raw: m,
-          role,
-          text,
-          ts: timestamp,
-          date: toDate(timestamp),
-          attachments,
-          versions,
-          modified: !!(m.edited || m.metadata?.modified || m.modified)
-        };
-      });
-
-      // Compute summary metadata
-      const allText = messages.map(mm => mm.text).filter(Boolean).join('\n');
-      const userCount = messages.filter(mm => mm.role === 'user').length;
-      const assistantCount = messages.filter(mm => mm.role === 'assistant').length;
-      const wordCount = countWords(allText);
-      const tokenCount = countTokens(allText);
-
-      // find 'last updated' timestamp from messages or conv.update_time or conv.create_time
-      let lastDate = null;
-      const candidateDates = [];
-      if (conv.update_time) candidateDates.push(toDate(conv.update_time));
-      if (conv.updated_at) candidateDates.push(toDate(conv.updated_at));
-      if (conv.create_time) candidateDates.push(toDate(conv.create_time));
-      if (conv.created_at) candidateDates.push(toDate(conv.created_at));
-      messages.forEach(m=>{ if (m.date) candidateDates.push(m.date); });
-      candidateDates.forEach(d=>{ if (d && (!lastDate || d>lastDate)) lastDate = d; });
-
-      return {
-        original: conv,
-        id, title,
-        messages,
-        stats: {userCount, assistantCount, wordCount, tokenCount},
-        lastDate: lastDate,
-        previewText: allText.slice(0,400)
-      };
-    });
-
-    return out;
-  }
-
-  // ---------- UI RENDER ----------
-  const el = {
-    fileJson: document.getElementById('fileJson'),
-    dirInput: document.getElementById('dirInput'),
-    convList: document.getElementById('convList'),
-    chatArea: document.getElementById('chatArea'),
-    footerInfo: document.getElementById('footerInfo'),
-    convHeaderTitle: document.getElementById('convHeaderTitle'),
-    convHeaderMeta: document.getElementById('convHeaderMeta'),
-    globalSearch: document.getElementById('globalSearch'),
-    sortSelect: document.getElementById('sortSelect'),
-    downloadConversation: document.getElementById('downloadConversation'),
-    downloadPDF: document.getElementById('downloadPDF'),
-    copyConversation: document.getElementById('copyConversation'),
-    exportAllTxt: document.getElementById('exportAllTxt'),
-    exportAllZip: document.getElementById('exportAllZip'),
-    toggleTheme: document.getElementById('toggleTheme')
-  };
-
-  function clearState(){
-    state.filesMap.clear();
-    state.conversations = [];
-    state.filteredIndices = [];
-    state.currentIndex = null;
-    el.convList.innerHTML = '';
-    el.chatArea.innerHTML = '<div class="muted">No conversation selected</div>';
-    el.footerInfo.textContent = 'No file loaded';
-    el.convHeaderTitle.textContent = 'Open a conversations.json to begin';
-    el.convHeaderMeta.textContent = '';
-    hideConversationActions();
-  }
-
-  function hideConversationActions(){
-    el.downloadConversation.style.display = 'none';
-    el.downloadPDF.style.display = 'none';
-    el.copyConversation.style.display = 'none';
-  }
-  function showConversationActions(){
-    el.downloadConversation.style.display = '';
-    el.downloadPDF.style.display = '';
-    el.copyConversation.style.display = '';
-  }
-
-  // Render conversation list based on state.filteredIndices (or all)
-  function renderConversationList(){
-    const list = el.convList;
-    list.innerHTML = '';
-    const indices = state.filteredIndices.length ? state.filteredIndices : state.conversations.map((_,i)=>i);
-    if (!indices.length) {
-      list.innerHTML = '<div class="muted small">No conversations found</div>';
-      return;
-    }
-    indices.forEach(i=>{
-      const conv = state.conversations[i];
-      const div = document.createElement('div');
-      div.className = 'convItem';
-      div.dataset.index = i;
-      const title = document.createElement('div');
-      title.className = 'convTitle';
-      title.textContent = conv.title || 'Untitled conversation';
-      const meta = document.createElement('div');
-      meta.className = 'convMeta';
-      const dateText = conv.lastDate ? formatDate(conv.lastDate) : '';
-      meta.innerHTML = `${dateText} <span style="margin-left:6px">${conv.stats.userCount} user / ${conv.stats.assistantCount} AI • ${conv.stats.wordCount} words • ${conv.stats.tokenCount} tokens</span>`;
-      // preview: show snippet with highlighted search terms if any
-      const preview = document.createElement('div');
-      preview.className = 'small';
-      preview.style.whiteSpace = 'nowrap';
-      preview.style.overflow = 'hidden';
-      preview.style.textOverflow = 'ellipsis';
-      const search = el.globalSearch.value.trim();
-      if (search) {
-        // highlight occurrences in previewText
-        const re = new RegExp(escapeRegExp(search), 'ig');
-        const txt = conv.previewText.replace(re, (m) => `<span class="highlight">${m}</span>`);
-        preview.innerHTML = txt || '';
-      } else {
-        preview.textContent = conv.previewText || '';
-      }
-
-      div.appendChild(title);
-      div.appendChild(meta);
-      div.appendChild(preview);
-      div.addEventListener('click', ()=>openConversation(i));
-      list.appendChild(div);
-    });
-  }
-
-  function escapeRegExp(s){ return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'); }
-
-  function openConversation(index){
-    state.currentIndex = index;
-    const conv = state.conversations[index];
-    // Update header
-    el.convHeaderTitle.textContent = conv.title || 'Untitled';
-    el.convHeaderMeta.textContent = conv.lastDate ? formatDate(conv.lastDate) : '';
-    el.footerInfo.textContent = `Parsed ${state.conversations.length} conversations • Showing "${conv.title}"`;
-    showConversationActions();
-    // Render messages into chatArea
-    const area = el.chatArea;
-    area.innerHTML = '';
-    // compute counts and tokens on the fly
-    let aiReplies = 0, userMsgs = 0, totalWords = 0, totalTokens = 0;
-    conv.messages.forEach((m, idx) => {
-      // Only render user & assistant
-      const role = (m.role || '').toLowerCase();
-      if (role !== 'user' && role !== 'assistant') return;
-      const text = (m.text || '').trim();
-      if (!text) return; // skip empty messages per requirements
-      const wrapper = document.createElement('div');
-      wrapper.className = 'message ' + (role === 'user' ? 'msgUser' : 'msgAssistant');
-      // create meta line
-      const meta = document.createElement('div');
-      meta.className = 'msgMeta';
-      meta.textContent = `${role} • ${m.date ? formatDate(m.date) : (m.ts ? m.ts : '')}`;
-      wrapper.appendChild(meta);
-
-      // attachments (render before text)
-      (m.attachments || []).forEach(att=>{
-        const file = findAttachmentFile(att);
-        if (file) {
-          const preview = renderFilePreview(file);
-          wrapper.appendChild(preview);
-        } else if (att.url) {
-          // show link or embedded if image
-          const a = document.createElement('a');
-          a.href = att.url;
-          a.target = '_blank';
-          a.textContent = `Attachment: ${att.name || att.id || att.url}`;
-          wrapper.appendChild(a);
-        } else {
-          const note = document.createElement('div');
-          note.className = 'small muted';
-          note.textContent = `Attachment metadata: ${att.name || att.id || 'unknown'}`;
-          wrapper.appendChild(note);
-        }
-      });
-
-      // Render text as Markdown into a container
-      const mdContainer = document.createElement('div');
-      mdContainer.className = 'mdContainer';
-      // Use marked to convert to HTML
-      // sanitize: we will allow basic HTML but avoid scripts by removing script tags after rendering
-      const rendered = marked.parse(text || '');
-      mdContainer.innerHTML = rendered;
-      // remove script tags if any
-      [...mdContainer.querySelectorAll('script')].forEach(s=>s.remove());
-      // Syntax highlight code blocks
-      mdContainer.querySelectorAll('pre code').forEach(block => {
-        try { hljs.highlightElement(block); } catch(e) {}
-        // attach copy button for this code block
-        const pre = block.closest('pre');
-        if (pre) {
-          const cp = document.createElement('button');
-          cp.className = 'copyBtn';
-          cp.textContent = 'Copy code';
-          cp.addEventListener('click', ()=> {
-            navigator.clipboard.writeText(block.textContent).then(()=> {
-              cp.textContent = 'Copied';
-              setTimeout(()=>cp.textContent='Copy code', 1200);
+        // --- Initialization ---
+        function init() {
+            // Event Listeners
+            fileInput.addEventListener('change', handleFileSelect);
+            searchInput.addEventListener('input', renderConversationList);
+            sortSelect.addEventListener('change', renderConversationList);
+            themeToggle.addEventListener('change', toggleTheme);
+            selectAllBtn.addEventListener('click', toggleSelectAll);
+            exportZipBtn.addEventListener('click', handleExportZip);
+            exportTxtBtn.addEventListener('click', handleExportTxt);
+            exportPdfBtn.addEventListener('click', handleExportPdf);
+            chatMessages.addEventListener('scroll', handleScrollButtons);
+            scrollToTopBtn.addEventListener('click', () => chatMessages.scrollTo({ top: 0, behavior: 'smooth' }));
+            scrollToBottomBtn.addEventListener('click', () => chatMessages.scrollTo({ top: chatMessages.scrollHeight, behavior: 'smooth' }));
+            chatSearchBtn.addEventListener('click', toggleChatSearch);
+            chatSearchClose.addEventListener('click', closeChatSearch);
+            chatSearchInput.addEventListener('input', performInChatSearch);
+            chatSearchNext.addEventListener('click', navigateSearchMatchesNext);
+            chatSearchPrev.addEventListener('click', navigateSearchMatchesPrev);
+            menuToggle.addEventListener('click', () => sidebar.classList.toggle('open'));
+            
+            // Use event delegation for conversation list clicks
+            conversationList.addEventListener('click', (e) => {
+                const item = e.target.closest('.conversation-item');
+                if (item && !e.target.matches('input[type="checkbox"]')) {
+                    const id = item.dataset.id;
+                    displayConversation(id);
+                    if (window.innerWidth <= 768) {
+                        sidebar.classList.remove('open');
+                    }
+                }
             });
-          });
-          pre.style.position = 'relative';
-          cp.style.position = 'absolute';
-          cp.style.top = '6px';
-          cp.style.right = '6px';
-          pre.appendChild(cp);
+
+            // Set initial theme based on user preference
+            if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+                themeToggle.checked = true;
+                document.body.classList.add('dark-mode');
+            }
         }
-      });
+        
+        // --- File Handling ---
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
 
-      wrapper.appendChild(mdContainer);
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const content = JSON.parse(e.target.result);
+                    // Smartly detect JSON structure (old array vs new object)
+                    let conversationsData = [];
+                    if (Array.isArray(content)) {
+                        conversationsData = content; // Old format
+                    } else if (typeof content === 'object' && content !== null && Array.isArray(content.items)) {
+                        conversationsData = content.items; // New format
+                    } else {
+                        throw new Error("Unsupported JSON structure.");
+                    }
 
-      // If versions/edit history exist, render them collapsed
-      if (m.versions && m.versions.length) {
-        const vWrap = document.createElement('div');
-        vWrap.className = 'small';
-        m.versions.forEach((v, vidx)=>{
-          const vb = document.createElement('div');
-          vb.innerHTML = `<span class="versionBadge">version ${vidx+1}</span> ${v.ts ? formatDate(toDate(v.ts)) : ''}`;
-          const vText = document.createElement('pre');
-          vText.style.background = '#fff7f7';
-          vText.style.padding = '8px';
-          vText.style.borderRadius = '6px';
-          vText.style.whiteSpace = 'pre-wrap';
-          vText.style.wordWrap = 'break-word';
-          vText.textContent = v.text || '';
-          vWrap.appendChild(vb);
-          vWrap.appendChild(vText);
-        });
-        wrapper.appendChild(vWrap);
-      }
-      // action buttons for each message
-      const actions = document.createElement('div');
-      actions.className = 'msgActions';
-      const copyBtn = document.createElement('button');
-      copyBtn.className = 'copyBtn';
-      copyBtn.textContent = 'Copy message';
-      copyBtn.addEventListener('click', ()=>{
-        navigator.clipboard.writeText(m.text || '').then(()=> {
-          copyBtn.textContent = 'Copied';
-          setTimeout(()=>copyBtn.textContent = 'Copy message', 1000);
-        });
-      });
-      actions.appendChild(copyBtn);
+                    allConversations = conversationsData.map(conv => ({...conv, id: conv.id || conv.conversation_id || generateUUID() })).filter(c => c.title);
+                    
+                    renderConversationList();
+                    resetChatView();
+                    alert(`解析完成，找到 ${allConversations.length} 個對話。`);
+                } catch (error) {
+                    console.error("Error parsing JSON:", error);
+                    alert("讀取或解析 'conversations.json' 失敗，請檢查檔案格式是否正確。\n錯誤訊息: " + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
 
-      const downloadRawBtn = document.createElement('button');
-      downloadRawBtn.className = 'copyBtn';
-      downloadRawBtn.textContent = 'Download raw JSON';
-      downloadRawBtn.addEventListener('click', ()=>{
-        const blob = new Blob([JSON.stringify(m.raw, null, 2)], {type:'application/json'});
-        saveAs(blob, `${conv.title || conv.id || 'conversation'}-msg-${idx}.json`);
-      });
-      actions.appendChild(downloadRawBtn);
+        // --- Rendering Logic ---
+        function renderConversationList() {
+            const filterText = searchInput.value.toLowerCase();
+            const sortBy = sortSelect.value;
+            
+            let filtered = allConversations;
 
-      wrapper.appendChild(actions);
-      area.appendChild(wrapper);
+            // Filter conversations
+            if (filterText) {
+                filtered = allConversations.map(conv => {
+                    const titleMatch = conv.title.toLowerCase().includes(filterText);
+                    let contentMatch = null;
+                    
+                    const messages = Object.values(conv.mapping || {}).map(m => m.message);
+                    for (const msg of messages) {
+                        if (msg && msg.content && msg.content.parts) {
+                            const text = msg.content.parts.join('');
+                            const index = text.toLowerCase().indexOf(filterText);
+                            if (index > -1) {
+                                const start = Math.max(0, index - 30);
+                                const end = Math.min(text.length, index + filterText.length + 30);
+                                const snippet = text.substring(start, end)
+                                    .replace(new RegExp(filterText, 'gi'), (match) => `<span class="highlight">${match}</span>`);
+                                contentMatch = `...${snippet}...`;
+                                break; 
+                            }
+                        }
+                    }
+                    
+                    if (titleMatch || contentMatch) {
+                        return { ...conv, preview: contentMatch };
+                    }
+                    return null;
+                }).filter(Boolean);
+            }
 
-      // stats
-      if (role === 'assistant') aiReplies++;
-      if (role === 'user') userMsgs++;
-      totalWords += countWords(m.text);
-      totalTokens += countTokens(m.text);
-    });
+            // Sort conversations
+            filtered.sort((a, b) => {
+                switch (sortBy) {
+                    case 'oldest': return a.create_time - b.create_time;
+                    case 'az': return a.title.localeCompare(b.title);
+                    case 'za': return b.title.localeCompare(a.title);
+                    case 'newest':
+                    default:
+                        return b.create_time - a.create_time;
+                }
+            });
 
-    // footer stats in header
-    el.convHeaderMeta.textContent = `${conv.stats.userCount} user / ${conv.stats.assistantCount} AI • ${conv.stats.wordCount} words • ${conv.stats.tokenCount} tokens (est)`;
-    // Ensure scroll to top
-    area.scrollTop = 0;
-  }
+            // Render list
+            conversationList.innerHTML = '';
+            filtered.forEach(conv => {
+                const listItem = document.createElement('li');
+                listItem.className = 'conversation-item';
+                if (conv.id === currentConversationId) {
+                    listItem.classList.add('active');
+                }
+                listItem.dataset.id = conv.id;
 
-  // Render file preview for known file types (images, txt, pdf)
-  function renderFilePreview(file){
-    const wrap = document.createElement('div');
-    wrap.className = 'filePreview';
-    const url = URL.createObjectURL(file);
-    const nameEl = document.createElement('div');
-    nameEl.textContent = file.name + ` (${Math.round(file.size/1024)} KB)`;
-    nameEl.className = 'small muted';
-    wrap.appendChild(nameEl);
-    if (file.type.startsWith('image/')) {
-      const img = document.createElement('img');
-      img.src = url;
-      img.style.maxWidth = '100%';
-      img.style.borderRadius = '6px';
-      wrap.appendChild(img);
-    } else if (file.name.endsWith('.txt') || file.type.startsWith('text/')) {
-      const p = document.createElement('pre');
-      p.style.maxHeight = '160px';
-      p.style.overflow = 'auto';
-      p.style.whiteSpace = 'pre-wrap';
-      // load text asynchronously
-      file.text().then(t=>p.textContent = t);
-      wrap.appendChild(p);
-    } else if (file.name.endsWith('.pdf')) {
-      const a = document.createElement('a');
-      a.href = url; a.target='_blank'; a.textContent='Open PDF';
-      wrap.appendChild(a);
-    } else {
-      const a = document.createElement('a');
-      a.href = url; a.download = file.name; a.textContent = 'Download file';
-      wrap.appendChild(a);
-    }
-    return wrap;
-  }
+                const stats = calculateStats(conv);
 
-  // ---------- UPLOAD HANDLERS ----------
-  el.fileJson.addEventListener('change', async (ev)=>{
-    const f = ev.target.files[0];
-    if (!f) return;
-    clearState();
-    state.filesMap.set(f.name, f);
-    el.footerInfo.textContent = `Loaded file: ${f.name}`;
-    try {
-      const txt = await f.text();
-      const parsed = safeJSONParse(txt);
-      if (!parsed) { el.footerInfo.textContent = 'Failed to parse JSON'; return; }
-      const convs = normalizeConversationsFromParsed(parsed);
-      state.conversations = convs;
-      state.filteredIndices = [];
-      el.footerInfo.textContent = `Parsed ${convs.length} conversations from ${f.name}`;
-      renderConversationList();
-    } catch(e){
-      console.error(e);
-      el.footerInfo.textContent = 'Error reading file';
-    }
-    // clear input so re-uploading same file triggers change
-    ev.target.value = '';
-  });
+                listItem.innerHTML = `
+                    <input type="checkbox" class="conv-checkbox" data-id="${conv.id}">
+                    <div class="conv-title">${conv.title || '無標題'}</div>
+                    <div class="conv-date">${formatTimestamp(conv.create_time)}</div>
+                    <div class="conv-stats">
+                        字數: ${stats.wordCount} | 用戶: ${stats.userMsgs} | AI: ${stats.assistantMsgs}
+                    </div>
+                    ${conv.preview ? `<div class="conv-preview">${conv.preview}</div>` : ''}
+                `;
+                conversationList.appendChild(listItem);
+            });
 
-  el.dirInput.addEventListener('change', async (ev)=>{
-    const files = Array.from(ev.target.files || []);
-    if (!files.length) return;
-    clearState();
-    // populate file map
-    files.forEach(f => { state.filesMap.set(f.webkitRelativePath || f.name, f); state.filesMap.set(f.name, f); });
-    // find conversations.json (case-insensitive)
-    const convFile = files.find(f => f.name.toLowerCase() === 'conversations.json');
-    if (!convFile) {
-      el.footerInfo.textContent = 'No conversations.json found in selected folder.';
-      return;
-    }
-    el.footerInfo.textContent = `Found ${files.length} files. Loading ${convFile.name}`;
-    try {
-      const txt = await convFile.text();
-      const parsed = safeJSONParse(txt);
-      if (!parsed) { el.footerInfo.textContent = 'Failed to parse conversations.json'; return; }
-      const convs = normalizeConversationsFromParsed(parsed);
-      state.conversations = convs;
-      state.filteredIndices = [];
-      el.footerInfo.textContent = `Parsed ${convs.length} conversations from folder upload`;
-      renderConversationList();
-    } catch(e){
-      console.error(e);
-      el.footerInfo.textContent = 'Error reading conversations.json';
-    }
-    ev.target.value = '';
-  });
+            convCount.textContent = `共 ${filtered.length} / ${allConversations.length} 個對話`;
+        }
 
-  // ---------- SEARCH & SORT ----------
-  el.globalSearch.addEventListener('input', ()=>{
-    applySearchAndFilter();
-  });
+        function displayConversation(id) {
+            closeChatSearch();
+            const conversation = allConversations.find(c => c.id === id);
+            if (!conversation) return;
 
-  el.sortSelect.addEventListener('change', ()=>{
-    applySearchAndFilter();
-  });
+            currentConversationId = id;
 
-  function applySearchAndFilter(){
-    const q = el.globalSearch.value.trim().toLowerCase();
-    // sort conversations in place by selection
-    const opt = el.sortSelect.value;
-    const indices = state.conversations.map((c,i)=>i);
-    indices.sort((a,b)=>{
-      const ca = state.conversations[a], cb = state.conversations[b];
-      if (opt === 'newest') return (cb.lastDate||0) - (ca.lastDate||0);
-      if (opt === 'oldest') return (ca.lastDate||0) - (cb.lastDate||0);
-      if (opt === 'az') return (ca.title||'').localeCompare(cb.title||'');
-      if (opt === 'za') return (cb.title||'').localeCompare(ca.title||'');
-      return 0;
-    });
-    if (!q) {
-      state.filteredIndices = indices;
-      renderConversationList();
-      return;
-    }
-    const matched = [];
-    const re = new RegExp(escapeRegExp(q), 'i');
-    indices.forEach(i=>{
-      const conv = state.conversations[i];
-      // search title
-      if ((conv.title||'').toLowerCase().includes(q)) { matched.push(i); return; }
-      // search messages' text
-      const foundAt = conv.messages.findIndex(m=>{
-        if (!m.text) return false;
-        if (re.test(m.text)) return true;
-        return false;
-      });
-      if (foundAt >= 0) matched.push(i);
-    });
-    state.filteredIndices = matched;
-    renderConversationList();
-  }
+            // Highlight active item in the list
+            document.querySelectorAll('.conversation-item').forEach(item => {
+                item.classList.toggle('active', item.dataset.id === id);
+            });
 
-  // ---------- EXPORTS ----------
-  el.exportAllTxt.addEventListener('click', async ()=>{
-    if (!state.conversations.length) return alert('No conversations loaded');
-    // generate individual txts and zip them
-    const zip = new JSZip();
-    state.conversations.forEach((conv, idx)=>{
-      const content = conv.messages.filter(m=>['user','assistant'].includes((m.role||'').toLowerCase()))
-        .filter(m=>m.text && m.text.trim())
-        .map(m=>`${m.role.toUpperCase()} • ${m.date ? formatDate(m.date) : ''}\n${m.text}\n\n`).join('\n');
-      zip.file(`${sanitizeFilename(conv.title||conv.id||'conversation')}.txt`, content);
-    });
-    const blob = await zip.generateAsync({type:'blob'});
-    saveAs(blob, 'all-conversations.zip');
-  });
+            chatTitle.textContent = conversation.title;
+            chatMessages.innerHTML = '';
+            welcomeScreen.style.display = 'none';
 
-  el.exportAllZip.addEventListener('click', async ()=>{
-    // allow selecting which to export — for now export all
-    el.exportAllTxt.click();
-  });
+            const messageNodes = Object.values(conversation.mapping || {});
+            
+            // Find the root node
+            let currentNodeId = conversation.current_node;
+            let path = [];
+            while(currentNodeId) {
+                const node = conversation.mapping[currentNodeId];
+                if(node && node.message) {
+                    path.unshift(node);
+                }
+                currentNodeId = node ? node.parent : null;
+            }
 
-  el.downloadConversation.addEventListener('click', ()=>{
-    if (state.currentIndex == null) return;
-    const conv = state.conversations[state.currentIndex];
-    const text = conv.messages.filter(m=>['user','assistant'].includes((m.role||'').toLowerCase()))
-      .filter(m=>m.text && m.text.trim())
-      .map(m=>`${m.role.toUpperCase()} • ${m.date ? formatDate(m.date) : ''}\n${m.text}\n`).join('\n\n');
-    const blob = new Blob([text], {type:'text/plain;charset=utf-8'});
-    saveAs(blob, `${sanitizeFilename(conv.title||conv.id)}.txt`);
-  });
+            path.forEach(node => {
+                const message = node.message;
+                if (!message || !message.author || !message.content || !message.content.parts || message.content.parts[0] === "") return;
+                
+                const role = message.author.role;
+                if (role !== 'user' && role !== 'assistant') return;
 
-  el.copyConversation.addEventListener('click', ()=>{
-    if (state.currentIndex == null) return;
-    const conv = state.conversations[state.currentIndex];
-    const text = conv.messages.filter(m=>['user','assistant'].includes((m.role||'').toLowerCase()))
-      .filter(m=>m.text && m.text.trim())
-      .map(m=>`${m.role.toUpperCase()} • ${m.date ? formatDate(m.date) : ''}\n${m.text}\n`).join('\n\n');
-    navigator.clipboard.writeText(text).then(()=> {
-      el.copyConversation.textContent = 'Copied';
-      setTimeout(()=>el.copyConversation.textContent = 'Copy', 1000);
-    });
-  });
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `message ${role}-message`;
 
-  el.downloadPDF.addEventListener('click', ()=>{
-    if (state.currentIndex == null) return;
-    // convert the visible conversation (.chatArea contents) to PDF
-    const node = el.chatArea;
-    const opt = {
-      margin:       10,
-      filename:     `${sanitizeFilename(state.conversations[state.currentIndex].title||'conversation')}.pdf`,
-      image:        { type: 'jpeg', quality: 0.98 },
-      html2canvas:  { scale: 2, useCORS: true },
-      jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' },
-      pagebreak:    { mode: ['css', 'legacy'] }
-    };
-    html2pdf().set(opt).from(node).save();
-  });
+                const content = message.content.parts.join('');
+                const renderedContent = marked.parse(content);
+                
+                messageDiv.innerHTML = `
+                    <div class="message-content">
+                        <div class="message-inner-content">${renderedContent}</div>
+                        <div class="timestamp">${formatTimestamp(message.create_time)}</div>
+                    </div>
+                    <button class="copy-message-btn" title="複製對話"><i class="fa-solid fa-copy"></i></button>
+                `;
 
-  function sanitizeFilename(name){
-    return (name || 'conversation').replace(/[<>:"/\\|?*\x00-\x1F]/g, '_').slice(0,200);
-  }
+                chatMessages.appendChild(messageDiv);
+            });
 
-  // ---------- THEME TOGGLE ----------
-  el.toggleTheme.addEventListener('click', ()=>{
-    if (state.theme === 'light') {
-      document.documentElement.style.setProperty('--bg', '#0b0b0d');
-      document.documentElement.style.setProperty('--panel', '#071018');
-      document.documentElement.style.setProperty('--muted', '#9aa5b1');
-      document.documentElement.style.setProperty('--text', '#e8eef2');
-      document.documentElement.style.setProperty('--bubble-user', '#0e1114');
-      document.documentElement.style.setProperty('--bubble-assistant', '#071220');
-      document.documentElement.style.setProperty('--code-bg', '#000');
-      document.documentElement.style.setProperty('--scrollbar', '#ffb3b3');
-      state.theme = 'dark';
-      document.body.style.color = '#e8eef2';
-    } else {
-      document.documentElement.style.setProperty('--bg', '#fff9fb');
-      document.documentElement.style.setProperty('--panel', '#fff');
-      document.documentElement.style.setProperty('--muted', '#8b7d86');
-      document.documentElement.style.setProperty('--text', '#222');
-      document.documentElement.style.setProperty('--bubble-user', '#fff');
-      document.documentElement.style.setProperty('--bubble-assistant', '#fffaf0');
-      document.documentElement.style.setProperty('--code-bg', '#0b0b0b');
-      document.documentElement.style.setProperty('--scrollbar', '#ffb3b3');
-      state.theme = 'light';
-      document.body.style.color = '#222';
-    }
-  });
+            // Add copy buttons to code blocks
+            chatMessages.querySelectorAll('pre').forEach(pre => {
+                const code = pre.querySelector('code');
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-code-btn';
+                copyBtn.innerHTML = '<i class="fa-solid fa-clipboard"></i> 複製';
+                copyBtn.addEventListener('click', () => {
+                    navigator.clipboard.writeText(code.innerText).then(() => {
+                        copyBtn.innerHTML = '<i class="fa-solid fa-check"></i> 已複製!';
+                        setTimeout(() => { copyBtn.innerHTML = '<i class="fa-solid fa-clipboard"></i> 複製'; }, 2000);
+                    });
+                });
+                pre.appendChild(copyBtn);
+            });
 
-  // ---------- Utility to open conversation by default if only one ----------
-  function openFirstIfAny(){
-    if (state.conversations.length === 1) openConversation(0);
-  }
+            // Add copy listeners for full messages
+            chatMessages.querySelectorAll('.copy-message-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    const content = e.currentTarget.parentElement.querySelector('.message-inner-content').innerText;
+                    navigator.clipboard.writeText(content).then(() => {
+                        const originalIcon = btn.innerHTML;
+                        btn.innerHTML = '<i class="fa-solid fa-check"></i>';
+                        setTimeout(() => { btn.innerHTML = originalIcon; }, 1500);
+                    });
+                });
+            });
 
-  // ---------- Initialize small UI state ----------
-  clearState();
+            // Enable buttons
+            [exportTxtBtn, exportPdfBtn, chatSearchBtn].forEach(btn => btn.disabled = false);
+            
+            // Highlight code
+            hljs.highlightAll();
+            handleScrollButtons();
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
 
-  // Expose some helpers to window for debugging if needed, but avoid polluting with big vars
-  window.ChatRecordsViewer = {
-    state,
-    openConversation,
-    normalizeConversationsFromParsed
-  };
+        function resetChatView() {
+            currentConversationId = null;
+            chatTitle.textContent = '請從左側選擇一個對話';
+            chatMessages.innerHTML = '';
+            welcomeScreen.style.display = 'flex';
+            [exportTxtBtn, exportPdfBtn, chatSearchBtn].forEach(btn => btn.disabled = true);
+            closeChatSearch();
+        }
 
-  // Small UX: allow dropping a conversations.json onto the page
-  document.addEventListener('dragover', (e)=>{ e.preventDefault(); });
-  document.addEventListener('drop', (e)=>{
-    e.preventDefault();
-    const f = e.dataTransfer.files && e.dataTransfer.files[0];
-    if (!f) return;
-    if (f.name.toLowerCase().endsWith('.json')) {
-      el.fileJson.files = e.dataTransfer.files;
-      const evt = new Event('change');
-      el.fileJson.dispatchEvent(evt);
-    }
-  });
+        // --- Exporting ---
+        function getConversationAsText(id) {
+            const conversation = allConversations.find(c => c.id === id);
+            if (!conversation) return "";
 
-  // Helpful note
-  console.info('Chat Records Viewer ready. Upload a conversations.json (single file) or the exported folder.');
+            let text = `標題: ${conversation.title}\n`;
+            text += `日期: ${formatTimestamp(conversation.create_time)}\n`;
+            text += "========================================\n\n";
+            
+            const path = getConversationPath(conversation);
+            path.forEach(node => {
+                const message = node.message;
+                if (!message || !message.author || !message.content || !message.content.parts) return;
+                const role = message.author.role;
+                if (role !== 'user' && role !== 'assistant') return;
+                
+                const author = role === 'user' ? '用戶' : 'AI';
+                const time = formatTimestamp(message.create_time);
+                const content = message.content.parts.join('');
+                text += `[${time}] ${author}:\n${content}\n\n----------------------------------------\n\n`;
+            });
+            return text;
+        }
 
-})(); // end IIFE
-</script>
+        function handleExportTxt() {
+            if (!currentConversationId) return;
+            const text = getConversationAsText(currentConversationId);
+            const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+            const conversation = allConversations.find(c => c.id === currentConversationId);
+            downloadBlob(blob, `${conversation.title}.txt`);
+        }
+
+        async function handleExportPdf() {
+            if (!currentConversationId) return;
+            const conversation = allConversations.find(c => c.id === currentConversationId);
+            const { jsPDF } = window.jspdf;
+            
+            // Temporarily add a class for PDF generation styling
+            chatMessages.classList.add('pdf-export-render');
+            
+            // Show a loading indicator
+            exportPdfBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 生成中...';
+            exportPdfBtn.disabled = true;
+
+            try {
+                const canvas = await html2canvas(chatMessages, {
+                    scale: 2, // Higher resolution
+                    useCORS: true,
+                    backgroundColor: getComputedStyle(document.body).getPropertyValue('--chat-bg').trim(),
+                    onclone: (doc) => {
+                        // Ensure text color is correct in the cloned document for rendering
+                        const bodyInClone = doc.querySelector('body');
+                        const isDarkMode = document.body.classList.contains('dark-mode');
+                        const textColor = isDarkMode ? 'var(--text-color-dark)' : 'var(--text-color-light)';
+                        const textSecondaryColor = isDarkMode ? 'var(--text-secondary-dark)' : 'var(--text-secondary-light)';
+                        doc.documentElement.style.setProperty('--text-color', textColor);
+                        doc.documentElement.style.setProperty('--text-secondary', textSecondaryColor);
+                    }
+                });
+                
+                const imgData = canvas.toDataURL('image/png');
+                const pdf = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'pt',
+                    format: 'a4'
+                });
+
+                const pdfWidth = pdf.internal.pageSize.getWidth();
+                const pdfHeight = pdf.internal.pageSize.getHeight();
+                const imgWidth = canvas.width;
+                const imgHeight = canvas.height;
+                const ratio = imgWidth / pdfWidth;
+                const canvasHeightInPdf = imgHeight / ratio;
+                
+                let heightLeft = canvasHeightInPdf;
+                let position = 15; // top margin
+
+                pdf.addImage(imgData, 'PNG', 15, position, pdfWidth - 30, canvasHeightInPdf);
+                heightLeft -= (pdfHeight - 30);
+
+                while (heightLeft > 0) {
+                    position = -heightLeft - 15;
+                    pdf.addPage();
+                    pdf.addImage(imgData, 'PNG', 15, position, pdfWidth - 30, canvasHeightInPdf);
+                    heightLeft -= (pdfHeight - 30);
+                }
+                
+                pdf.save(`${conversation.title}.pdf`);
+
+            } catch(e) {
+                console.error("PDF export failed:", e);
+                alert("PDF 導出失敗，詳情請查看控制台。");
+            } finally {
+                chatMessages.classList.remove('pdf-export-render');
+                exportPdfBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> 導出 PDF';
+                exportPdfBtn.disabled = false;
+            }
+        }
+
+        async function handleExportZip() {
+            const selectedCheckboxes = document.querySelectorAll('.conv-checkbox:checked');
+            if (selectedCheckboxes.length === 0) {
+                alert('請先勾選您想導出的對話。');
+                return;
+            }
+            
+            exportZipBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> 打包中...';
+            exportZipBtn.disabled = true;
+
+            const zip = new JSZip();
+            selectedCheckboxes.forEach(checkbox => {
+                const id = checkbox.dataset.id;
+                const conversation = allConversations.find(c => c.id === id);
+                if (conversation) {
+                    const textContent = getConversationAsText(id);
+                    // Sanitize filename
+                    const filename = (conversation.title || 'untitled').replace(/[\/\\?%*:|"<>]/g, '-') + '.txt';
+                    zip.file(filename, textContent);
+                }
+            });
+
+            try {
+                const content = await zip.generateAsync({ type: "blob" });
+                downloadBlob(content, 'ChatGPT_Export.zip');
+            } catch(e) {
+                console.error("ZIP export failed:", e);
+                alert("ZIP 導出失敗。");
+            } finally {
+                exportZipBtn.innerHTML = '<i class="fa-solid fa-file-zipper"></i> 導出ZIP';
+                exportZipBtn.disabled = false;
+            }
+        }
+
+        // --- In-Chat Search ---
+        function toggleChatSearch() {
+            chatSearchBar.style.display = chatSearchBar.style.display === 'flex' ? 'none' : 'flex';
+            if (chatSearchBar.style.display === 'flex') {
+                chatSearchInput.focus();
+            } else {
+                clearInChatSearch();
+            }
+        }
+        
+        function closeChatSearch() {
+            chatSearchBar.style.display = 'none';
+            clearInChatSearch();
+        }
+
+        function performInChatSearch() {
+            const searchTerm = chatSearchInput.value;
+            clearInChatSearch();
+
+            if (searchTerm.length < 1) {
+                chatSearchNav.textContent = '0 / 0';
+                return;
+            }
+
+            const regex = new RegExp(searchTerm, 'gi');
+            const messageContents = chatMessages.querySelectorAll('.message-inner-content');
+            
+            messageContents.forEach(content => {
+                const originalHTML = content.innerHTML;
+                const newHTML = originalHTML.replace(regex, match => `<span class="highlight-search">${match}</span>`);
+                if (newHTML !== originalHTML) {
+                    content.innerHTML = newHTML;
+                }
+            });
+
+            chatSearchMatches = Array.from(chatMessages.querySelectorAll('.highlight-search'));
+            currentMatchIndex = -1;
+            chatSearchNav.textContent = `0 / ${chatSearchMatches.length}`;
+
+            if (chatSearchMatches.length > 0) {
+                navigateSearchMatchesNext();
+            }
+        }
+        
+        function clearInChatSearch() {
+            chatSearchMatches.forEach(el => {
+                el.outerHTML = el.innerHTML;
+            });
+            chatSearchMatches = [];
+            currentMatchIndex = -1;
+            chatSearchNav.textContent = '0 / 0';
+        }
+
+        function navigateSearchMatchesNext() {
+            if (chatSearchMatches.length === 0) return;
+            currentMatchIndex = (currentMatchIndex + 1) % chatSearchMatches.length;
+            updateSearchHighlight();
+        }
+
+        function navigateSearchMatchesPrev() {
+            if (chatSearchMatches.length === 0) return;
+            currentMatchIndex = (currentMatchIndex - 1 + chatSearchMatches.length) % chatSearchMatches.length;
+            updateSearchHighlight();
+        }
+        
+        function updateSearchHighlight() {
+            chatSearchMatches.forEach((el, index) => {
+                el.style.backgroundColor = index === currentMatchIndex ? 'orange' : 'yellow';
+            });
+            const activeMatch = chatSearchMatches[currentMatchIndex];
+            if (activeMatch) {
+                activeMatch.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                chatSearchNav.textContent = `${currentMatchIndex + 1} / ${chatSearchMatches.length}`;
+            }
+        }
+
+        // --- UI & Helpers ---
+        function toggleTheme() {
+            document.body.classList.toggle('dark-mode');
+        }
+
+        function toggleSelectAll() {
+            const checkboxes = document.querySelectorAll('.conv-checkbox');
+            const isAllSelected = Array.from(checkboxes).every(cb => cb.checked);
+            checkboxes.forEach(cb => cb.checked = !isAllSelected);
+            selectAllBtn.innerHTML = !isAllSelected ? '<i class="fa-solid fa-square-minus"></i> 取消全選' : '<i class="fa-solid fa-check-double"></i> 全選';
+        }
+
+        function handleScrollButtons() {
+            const { scrollTop, scrollHeight, clientHeight } = chatMessages;
+            scrollToTopBtn.style.display = scrollTop > 200 ? 'block' : 'none';
+            scrollToBottomBtn.style.display = scrollHeight - scrollTop - clientHeight > 200 ? 'block' : 'none';
+        }
+
+        function formatTimestamp(unixTimestamp) {
+            if (!unixTimestamp) return 'N/A';
+            // The timestamp is in seconds, JavaScript Date needs milliseconds.
+            const date = new Date(unixTimestamp * 1000);
+            if (isNaN(date)) return '無效日期';
+            
+            const Y = date.getFullYear();
+            const M = String(date.getMonth() + 1).padStart(2, '0');
+            const D = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const m = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            return `${Y}-${M}-${D} ${h}:${m}:${s}`;
+        }
+        
+        function calculateStats(conversation) {
+            let wordCount = 0;
+            let userMsgs = 0;
+            let assistantMsgs = 0;
+            
+            const messages = Object.values(conversation.mapping || {}).map(m => m.message);
+            messages.forEach(msg => {
+                if (msg && msg.content && msg.content.parts) {
+                    const text = msg.content.parts.join('');
+                    wordCount += text.split(/\s+/).length;
+                    if (msg.author.role === 'user') userMsgs++;
+                    if (msg.author.role === 'assistant') assistantMsgs++;
+                }
+            });
+            return { wordCount, userMsgs, assistantMsgs };
+        }
+        
+        function getConversationPath(conversation) {
+            let path = [];
+            let currentNodeId = conversation.current_node;
+            while(currentNodeId) {
+                const node = conversation.mapping[currentNodeId];
+                if(node && node.message) {
+                    path.unshift(node);
+                }
+                currentNodeId = node ? node.parent : null;
+            }
+            return path;
+        }
+
+        function downloadBlob(blob, filename) {
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function generateUUID() {
+            return ([1e7]+-1e3+-4e3+-8e3+-1e11).replace(/[018]/g, c =>
+                (c ^ crypto.getRandomValues(new Uint8Array(1))[0] & 15 >> c / 4).toString(16)
+            );
+        }
+
+        // Start the application
+        init();
+    })();
+    </script>
+
 </body>
 </html>
